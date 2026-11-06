@@ -1,15 +1,21 @@
 import { CreateMLCEngine, prebuiltAppConfig } from '@mlc-ai/web-llm';
+import { IS_IOS } from './models.js';
 
 export const hasWebGPU = () => typeof navigator !== 'undefined' && !!navigator.gpu;
 
 /** 브라우저 내장 엔진 (WebLLM / WebGPU). 모델은 Cache API에 저장되어 이후 오프라인 동작. */
 export class BrowserEngine {
   async load({ modelId }, onProgress) {
-    if (!hasWebGPU()) throw new Error('이 브라우저는 WebGPU를 지원하지 않습니다. 최신 Chrome(데스크톱/안드로이드)을 쓰거나 Ollama 방식을 선택하세요.');
-    this.engine = await CreateMLCEngine(modelId, {
-      appConfig: { ...prebuiltAppConfig, useIndexedDBCache: false },
-      initProgressCallback: (p) => onProgress(p.progress ?? 0, p.text ?? ''),
-    });
+    if (!hasWebGPU()) throw new Error('WebGPU를 쓸 수 없습니다. iPhone은 iOS 26 이상이 필요합니다(설정 > 일반 > 소프트웨어 업데이트). 데스크톱/안드로이드는 최신 Chrome을 쓰세요.');
+    this.engine = await CreateMLCEngine(
+      modelId,
+      {
+        appConfig: { ...prebuiltAppConfig, useIndexedDBCache: false },
+        initProgressCallback: (p) => onProgress(p.progress ?? 0, p.text ?? ''),
+      },
+      // iOS는 KV 캐시 메모리를 아끼기 위해 컨텍스트를 4096으로 제한
+      IS_IOS ? { context_window_size: 4096 } : undefined,
+    );
   }
   async stream(messages, { temperature, maxTokens, thinking }, onToken) {
     const chunks = await this.engine.chat.completions.create({

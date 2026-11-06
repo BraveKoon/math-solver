@@ -1,0 +1,6 @@
+{
+  "appId": "com.mathsolver.app",
+  "appName": "Math Solver",
+  "webDir": "dist",
+  "ios": { "contentInset": "never", "backgroundColor": "#0f1115", "limitsNavigationsToAppBoundDomains": false }
+}

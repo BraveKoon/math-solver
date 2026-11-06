@@ -27,5 +27,14 @@ npm run build && npm run preview   # 배포 빌드 (PWA 활성)
 - 갤럭시: RAM 8GB 이상 + 최신 Chrome 권장, 1.7B 모델부터 시작하세요. 4B 이상은 기기에 따라 메모리 부족이 날 수 있습니다.
 - 소형 모델은 계산 실수를 할 수 있으니 중요한 결과는 검증하세요.
 
+## iPhone 앱 (1차 타깃: iPhone 16)
+Capacitor로 같은 웹앱을 WKWebView 네이티브 앱으로 감쌉니다 (`ios/`).
+- **요구사항**: iOS 26 이상 (Safari/WKWebView의 WebGPU 지원 버전), Mac + Xcode 26, iPhone 16 (A18, RAM 8GB).
+- 빌드: `npm install && npm run ios` → Xcode에서 Signing Team 지정 → iPhone 16 선택 후 Run.
+- iPhone에서는 메모리 한도 때문에 Qwen3 0.6B / 1.7B(기본) / 4B, Qwen2.5-Math 1.5B만 노출되고, 컨텍스트 4096·최대 토큰 2048로 제한합니다.
+- `increased-memory-limit` 엔타이틀먼트를 `ios/App/App/App.entitlements`에 설정했습니다(개발자 계정 App ID에서 Increased Memory Limit capability 활성화 필요).
+- **검증 필요**: 이 저장소는 Linux 환경에서 만들어져 Xcode 빌드와 실기기 추론은 아직 테스트하지 못했습니다. 4B가 불안정하면 1.7B를 쓰세요.
+- 성능이 부족하면 다음 단계로 네이티브 llama.cpp/MLX 플러그인으로 교체할 수 있습니다(웹 UI는 그대로).
+
 ## 로드맵
 - 사진(OCR/비전) 입력, Capacitor로 Android 앱 패키징(네이티브 llama.cpp 백엔드), 계산 검증용 로컬 CAS(예: Pyodide+SymPy).

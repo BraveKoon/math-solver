@@ -1,5 +1,5 @@
 import './style.css';
-import { MODELS, DEFAULT_SYSTEM } from './models.js';
+import { MODELS, DEFAULT_SYSTEM, IS_IOS } from './models.js';
 import { BrowserEngine, OllamaEngine, hasWebGPU } from './engine.js';
 import { renderAnswer } from './render.js';
 
@@ -22,7 +22,8 @@ $('ollamaModel').value = store.get('ollamaModel', $('ollamaModel').value);
 $('sys').value = store.get('sys', DEFAULT_SYSTEM);
 $('thinking').checked = store.get('thinking', true);
 $('temp').value = store.get('temp', 0.3); $('tempOut').textContent = $('temp').value;
-$('maxTokens').value = store.get('maxTokens', 4096);
+$('maxTokens').value = store.get('maxTokens', IS_IOS ? 2048 : 4096);
+if (IS_IOS) { $('backend').querySelector('[value=ollama]').remove(); $('backend').value = 'browser'; }
 
 function syncBackendUI() {
   const b = $('backend').value === 'browser';
