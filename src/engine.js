@@ -1,0 +1,79 @@
+import { CreateMLCEngine, prebuiltAppConfig } from '@mlc-ai/web-llm';
+
+export const hasWebGPU = () => typeof navigator !== 'undefined' && !!navigator.gpu;
+
+/** 브라우저 내장 엔진 (WebLLM / WebGPU). 모델은 Cache API에 저장되어 이후 오프라인 동작. */
+export class BrowserEngine {
+  async load({ modelId }, onProgress) {
+    if (!hasWebGPU()) throw new Error('이 브라우저는 WebGPU를 지원하지 않습니다. 최신 Chrome(데스크톱/안드로이드)을 쓰거나 Ollama 방식을 선택하세요.');
+    this.engine = await CreateMLCEngine(modelId, {
+      appConfig: { ...prebuiltAppConfig, useIndexedDBCache: false },
+      initProgressCallback: (p) => onProgress(p.progress ?? 0, p.text ?? ''),
+    });
+  }
+  async stream(messages, { temperature, maxTokens, thinking }, onToken) {
+    const chunks = await this.engine.chat.completions.create({
+      messages,
+      stream: true,
+      temperature,
+      max_tokens: maxTokens,
+      extra_body: { enable_thinking: !!thinking },
+    });
+    for await (const c of chunks) {
+      const t = c.choices[0]?.delta?.content;
+      if (t) onToken(t);
+    }
+  }
+  stop() { this.engine?.interruptGenerate(); }
+  async clearCache(modelId) {
+    const { deleteModelAllInfoInCache } = await import('@mlc-ai/web-llm');
+    await deleteModelAllInfoInCache(modelId);
+  }
+}
+
+/** PC의 Ollama 서버(OpenAI 호환이 아닌 네이티브 /api/chat) 사용. 서버도 로컬이므로 인터넷 불필요. */
+export class OllamaEngine {
+  async load({ url, model }, onProgress) {
+    this.url = url.replace(/\/$/, '');
+    this.model = model;
+    const r = await fetch(`${this.url}/api/tags`).catch(() => null);
+    if (!r?.ok) throw new Error('Ollama 서버에 연결할 수 없습니다. `OLLAMA_ORIGINS=* ollama serve` 로 실행했는지 확인하세요.');
+    const names = (await r.json()).models.map((m) => m.name);
+    if (!names.some((n) => n === model || n.startsWith(model + ':') || n === model + ':latest'))
+      throw new Error(`모델 '${model}' 이 없습니다. 먼저 'ollama pull ${model}' 하세요. 설치됨: ${names.join(', ') || '없음'}`);
+    onProgress(1, 'Ollama 연결됨');
+  }
+  async stream(messages, { temperature, maxTokens, thinking }, onToken) {
+    this.ctrl = new AbortController();
+    const r = await fetch(`${this.url}/api/chat`, {
+      method: 'POST',
+      signal: this.ctrl.signal,
+      body: JSON.stringify({
+        model: this.model, messages, stream: true, think: !!thinking,
+        options: { temperature, num_predict: maxTokens },
+      }),
+    });
+    if (!r.ok) throw new Error(`Ollama 오류 ${r.status}: ${await r.text()}`);
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '', inThink = false;
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let i;
+        while ((i = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+          if (!line) continue;
+          const m = JSON.parse(line).message || {};
+          if (m.thinking) { if (!inThink) { onToken('<think>'); inThink = true; } onToken(m.thinking); }
+          if (m.content) { if (inThink) { onToken('</think>'); inThink = false; } onToken(m.content); }
+        }
+      }
+    } catch (e) { if (e.name !== 'AbortError') throw e; }
+    if (inThink) onToken('</think>');
+  }
+  stop() { this.ctrl?.abort(); }
+  async clearCache() {}
+}
