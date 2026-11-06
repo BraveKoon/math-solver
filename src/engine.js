@@ -1,6 +1,19 @@
 import { CreateMLCEngine, prebuiltAppConfig } from '@mlc-ai/web-llm';
 import { IS_IOS } from './models.js';
 
+// 모델 실행 라이브러리(wasm)를 앱에 번들(public/wasm)해서 첫 실행에도 GitHub 접속이 필요 없게 함.
+const BUNDLED_LIBS = [
+  'Qwen3-0.6B-q4f16_1-MLC', 'Qwen3-1.7B-q4f16_1-MLC', 'Qwen3-4B-q4f16_1-MLC', 'Qwen3.5-4B-q4f16_1-MLC', 'Qwen2.5-Math-1.5B-Instruct-q4f16_1-MLC',
+];
+function localAppConfig() {
+  const model_list = prebuiltAppConfig.model_list.map((m) => {
+    if (!BUNDLED_LIBS.includes(m.model_id)) return m;
+    const file = m.model_lib.split('/').pop();
+    return { ...m, model_lib: new URL(`wasm/${file}`, document.baseURI).href };
+  });
+  return { ...prebuiltAppConfig, model_list, useIndexedDBCache: false };
+}
+
 export const hasWebGPU = () => typeof navigator !== 'undefined' && !!navigator.gpu;
 
 /** 브라우저 내장 엔진 (WebLLM / WebGPU). 모델은 Cache API에 저장되어 이후 오프라인 동작. */
@@ -10,7 +23,7 @@ export class BrowserEngine {
     this.engine = await CreateMLCEngine(
       modelId,
       {
-        appConfig: { ...prebuiltAppConfig, useIndexedDBCache: false },
+        appConfig: localAppConfig(),
         initProgressCallback: (p) => onProgress(p.progress ?? 0, p.text ?? ''),
       },
       // iOS는 KV 캐시 메모리를 아끼기 위해 컨텍스트를 4096으로 제한

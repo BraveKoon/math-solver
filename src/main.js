@@ -58,12 +58,24 @@ function addMsg(role, content) {
 }
 history.forEach((m) => addMsg(m.role === 'user' ? 'user' : 'bot', m.content));
 
+// ---------- 저장소: 모델 캐시가 iOS에 의해 지워지지 않도록 영구 저장 요청 + 용량 점검 ----------
+async function ensureStorage() {
+  try { await navigator.storage?.persist?.(); } catch {}
+  try {
+    const { quota, usage } = (await navigator.storage?.estimate?.()) ?? {};
+    const need = (MODELS.find((m) => m.id === $('model').value)?.sizeMB ?? 2500) * 1024 * 1024;
+    if (quota && usage != null && quota - usage < need)
+      throw new Error(`저장 공간이 부족합니다. 필요 약 ${Math.round(need / 2 ** 20)}MB, 남은 공간 ${Math.round((quota - usage) / 2 ** 20)}MB. 더 작은 모델을 고르세요.`);
+  } catch (e) { if (/저장 공간/.test(e.message)) throw e; }
+}
+
 // ---------- 모델 로딩 ----------
 $('loadBtn').onclick = async () => {
   const kind = $('backend').value;
   $('loadBtn').disabled = true; $('progress').hidden = false; $('progress').value = 0;
   $('status').textContent = '불러오는 중'; $('status').className = 'badge';
   try {
+    if (kind === 'browser') await ensureStorage();
     engine = kind === 'browser' ? new BrowserEngine() : new OllamaEngine();
     const cfg = kind === 'browser'
       ? { modelId: $('model').value }
