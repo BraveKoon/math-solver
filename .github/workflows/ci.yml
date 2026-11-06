@@ -23,8 +23,8 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run build && npx cap sync ios
-      - name: Build for iPhone 16 simulator (no signing)
+      - name: Build for iOS Simulator (no signing)
         run: |
           xcodebuild -project ios/App/App.xcodeproj -scheme App \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO build
