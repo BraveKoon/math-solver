@@ -8,6 +8,8 @@
 - [ ] `docs/PRIVACY.md`를 공개 URL로 호스팅 (GitHub Pages 가능) → 개인정보 처리방침 URL 입력
 - [ ] 지원 URL 준비 (GitHub 저장소 URL 가능)
 
+> 맥이 없으면 `docs/TESTFLIGHT_NO_MAC.md`를 따르세요 (GitHub Actions로 업로드).
+
 ## 2. 빌드·업로드
 1. `npm install && npm run ios` (Mac, Xcode 26)
 2. Signing & Capabilities → Team 지정, 버전/빌드 번호 설정
