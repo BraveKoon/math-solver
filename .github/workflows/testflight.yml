@@ -64,6 +64,14 @@ jobs:
             -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_${KEY_ID}.p8" \
             -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID"
 
+      - name: Show distribution logs on failure
+        if: failure()
+        run: |
+          # 업로드 실패 원인 확인용. 시크릿 값은 GitHub가 자동으로 *** 로 가립니다.
+          find "${TMPDIR:-/tmp}" -path '*xcdistributionlogs*' -name '*.log' 2>/dev/null | while read -r f; do
+            echo "=== $f"; grep -iE "error|fail|denied|not found|forbidden|bundle|app record|provision" "$f" | tail -n 40
+          done
+
       - name: Remove key
         if: always()
         run: rm -rf "$RUNNER_TEMP/keys"
