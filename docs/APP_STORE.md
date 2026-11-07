@@ -2,7 +2,7 @@
 
 ## 1. 사전 준비 (사람이 해야 하는 것)
 - [ ] Apple Developer Program 가입 (연 $99)
-- [ ] Bundle ID 등록: `com.mathsolver.app` (원하는 ID로 바꾸려면 `capacitor.config.json`과 Xcode 프로젝트의 `PRODUCT_BUNDLE_IDENTIFIER` 모두 변경)
+- [ ] Bundle ID 등록: `com.bravekoon.mathsolver` (원하는 ID로 바꾸려면 `capacitor.config.json`과 Xcode 프로젝트의 `PRODUCT_BUNDLE_IDENTIFIER` 모두 변경)
 - [ ] App ID에서 **Increased Memory Limit** capability 활성화
 - [ ] App Store Connect에서 새 앱 생성
 - [ ] `docs/PRIVACY.md`를 공개 URL로 호스팅 (GitHub Pages 가능) → 개인정보 처리방침 URL 입력
