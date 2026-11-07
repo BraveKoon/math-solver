@@ -1,5 +1,5 @@
 {
-  "appId": "com.bravekoon.mathsolver",
+  "appId": "com.bravekoon.mathsolver.app",
   "appName": "Math Solver",
   "webDir": "dist",
   "ios": {
