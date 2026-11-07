@@ -28,4 +28,4 @@
 - App Store Connect에서 **이름 사용 가능 여부** 조회 (이미 쓰이는 이름이면 부제를 붙여 구분)
 - 상표 검색(KIPRIS / USPTO)과 도메인·GitHub 이름 확인
 - 확정 후 바꿀 곳: `capacitor.config.json`의 `appName`, `ios/App/App/Info.plist`의 `CFBundleDisplayName`, `index.html` 제목, `vite.config.js` 매니페스트, 스토어 메타데이터(`docs/APP_STORE.md`)
-- Bundle ID(`com.mathsolver.app`)는 이름과 무관하며, 첫 등록 후에는 바꿀 수 없으니 등록 전에 확정
+- Bundle ID(`com.bravekoon.mathsolver`)는 이름과 무관하며, 첫 등록 후에는 바꿀 수 없으니 등록 전에 확정
