@@ -4,16 +4,16 @@
 서버도 계정도 필요 없고 입력한 문제는 기기 밖으로 나가지 않습니다.
 
 ## 구조
-- **브라우저 내장 모드 (기본)**: [WebLLM](https://github.com/mlc-ai/web-llm) + WebGPU로 모델을 브라우저에서 직접 실행. 갤럭시(Android Chrome, WebGPU 지원 기기)에서도 동일하게 동작.
-- **Ollama 모드 (PC용)**: 같은 PC의 Ollama 서버를 사용해 더 큰 모델 실행. `OLLAMA_ORIGINS=* ollama serve`
-- PWA: 앱 셸을 서비스워커로 캐시 → 홈 화면에 설치, 비행기 모드 동작.
-- 모델: Qwen3 0.6B·1.7B·4B·8B, Qwen3.5 4B, DeepSeek-R1-Distill-Qwen-7B, Qwen2.5-Math-1.5B — 앱 안에서는 "오일러" 계열 이름으로 표시(`docs/NAMING.md`, `src/models.js`)
-- 수식: Markdown + KaTeX, 추론 과정(`<think>`)은 접이식 표시.
+- **iPhone 앱 (기본)**: Capacitor 네이티브 플러그인(`plugins/capacitor-llama`)으로 [llama.cpp](https://github.com/ggml-org/llama.cpp)를 Metal GPU에서 실행. 모델(GGUF)은 앱 안의 모델 선택 시트에서 Hugging Face로부터 한 번 내려받고 이후 완전 오프라인.
+- **이미지 첨부**: llama.cpp의 `mtmd`(멀티모달)로 비전 모델(오일러 비전, Qwen2.5-VL 3B)이 사진 속 문제를 읽고 풉니다.
+- **웹/PWA**: 브라우저에서는 [WebLLM](https://github.com/mlc-ai/web-llm)(WebGPU)로 실행(이미지 미지원). 갤럭시는 이 웹 버전 또는 추후 Android 플러그인.
+- **화면**: 왼쪽 서랍에 세션 목록(검색·삭제), 하단 시트에서 모델 선택·다운로드·삭제, 입력창 ＋로 이미지 첨부. 세션은 기기에만 저장.
+- 모델 목록: `src/models.js` (오일러 미니/오일러/오일러 플러스/오일러 비전, 더 많은 모델: 오일러 매스 등)
 
 ## 실행
 ```bash
 npm install
-npm run dev        # 개발
+npm run dev        # 개발 (http://localhost:5173/?mock 이면 가짜 엔진으로 화면 확인)
 npm run build && npm run preview   # 배포 빌드 (PWA 활성)
 ```
 `dist/`를 정적 호스팅(HTTPS 또는 localhost)하면 됩니다. 서비스워커·WebGPU는 보안 컨텍스트가 필요합니다.

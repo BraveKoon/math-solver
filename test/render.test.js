@@ -14,6 +14,11 @@ describe('renderAnswer', () => {
     expect(renderAnswer('<think>a</think>b')).toContain('<details class="think">');
     expect(renderAnswer('<think>partial')).toContain('open');
   });
+  it('repairs a missing opening think tag', () => {
+    const h = renderAnswer('reasoning here</think>answer');
+    expect(h).toContain('<details class="think">');
+    expect(h).toContain('answer');
+  });
   it('sanitizes scripts and handlers', () => {
     const h = renderAnswer('<script>alert(1)</script><img src=x onerror=alert(1)>');
     expect(h).not.toContain('<script');

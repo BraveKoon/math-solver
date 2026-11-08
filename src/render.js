@@ -25,6 +25,8 @@ export function renderMarkdown(src) {
 
 /** <think>…</think> 를 접이식 블록으로 분리해 렌더링. 스트리밍 중 닫히지 않은 블록도 처리. */
 export function renderAnswer(raw) {
+  // 생각 모델이 여는 태그 없이 '</think>'만 출력하는 경우 보정
+  if (raw.includes('</think>') && !raw.includes('<think>')) raw = '<think>' + raw;
   let out = '';
   let rest = raw;
   for (;;) {

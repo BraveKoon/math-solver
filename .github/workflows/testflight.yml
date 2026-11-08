@@ -24,6 +24,8 @@ jobs:
 
       - run: npm ci
       - run: npm test
+      - name: Fetch llama.cpp xcframework
+        run: npm run fetch:llama
       - run: npm run build && npx cap sync ios
 
       - name: Write App Store Connect API key
