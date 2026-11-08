@@ -41,10 +41,27 @@ final class ModelStore: NSObject, URLSessionDownloadDelegate {
     }
 
     func dir(_ id: String) -> URL { Self.root.appendingPathComponent(id, isDirectory: true) }
-    func file(_ id: String, _ name: String) -> URL { dir(id).appendingPathComponent(name) }
     private func marker(_ id: String) -> URL { dir(id).appendingPathComponent(".complete") }
 
-    func isComplete(_ id: String) -> Bool { FileManager.default.fileExists(atPath: marker(id).path) }
+    /// 앱 설치 파일에 들어 있는 기본 모델 폴더(BundledModels/<id>)
+    func bundledDir(_ id: String) -> URL? {
+        guard let base = Bundle.main.resourceURL?.appendingPathComponent("BundledModels/\(id)", isDirectory: true) else { return nil }
+        let items = (try? FileManager.default.contentsOfDirectory(atPath: base.path)) ?? []
+        return items.contains { $0.hasSuffix(".gguf") } ? base : nil
+    }
+
+    func isBundled(_ id: String) -> Bool { bundledDir(id) != nil }
+
+    func file(_ id: String, _ name: String) -> URL {
+        if let b = bundledDir(id), FileManager.default.fileExists(atPath: b.appendingPathComponent(name).path) {
+            return b.appendingPathComponent(name)
+        }
+        return dir(id).appendingPathComponent(name)
+    }
+
+    func isComplete(_ id: String) -> Bool {
+        isBundled(id) || FileManager.default.fileExists(atPath: marker(id).path)
+    }
 
     func isDownloading(_ id: String) -> Bool { lock.lock(); defer { lock.unlock() }; return jobs[id] != nil }
 
@@ -59,6 +76,7 @@ final class ModelStore: NSObject, URLSessionDownloadDelegate {
     }
 
     func delete(_ id: String) {
+        if isBundled(id) { return }   // 내장 모델은 앱 일부라 지울 수 없음
         cancel(id)
         try? FileManager.default.removeItem(at: dir(id))
     }

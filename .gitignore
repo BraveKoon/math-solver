@@ -1,3 +1,7 @@
 node_modules
 dist
 plugins/capacitor-llama/ios/Frameworks/
+
+# 빌드 때 내려받는 내장 모델(대용량)
+ios/App/App/BundledModels/*
+!ios/App/App/BundledModels/README.txt

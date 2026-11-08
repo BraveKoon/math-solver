@@ -91,7 +91,7 @@ export class UnsupportedEngine {
 export class MockEngine {
   kind = 'mock';
   supportsImages = true;
-  state = { 'euler-mini': true, euler: true };
+  state = { euler: true };
 
   async status(models) {
     return Object.fromEntries(models.map((m) => [m.id, { downloaded: !!this.state[m.id], downloading: false }]));

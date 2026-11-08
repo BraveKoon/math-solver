@@ -1,4 +1,5 @@
 // 모델 카탈로그. iPhone 앱(llama.cpp)이 Hugging Face에서 GGUF를 내려받아 실행.
+// bundled: 앱 설치 파일에 포함(받기 불필요, 삭제 불가)
 // thinking: 'toggle' = /no_think 로 끌 수 있음(Qwen3 하이브리드), 'always' = 항상 생각, 'none' = 생각 단계 없음
 export const CATALOG = [
   {
@@ -8,7 +9,7 @@ export const CATALOG = [
   },
   {
     id: 'euler', name: '오일러', desc: '일상 문제에 가장 효율적', detail: 'Qwen3 1.7B',
-    sizeMB: 1100, nCtx: 4096, thinking: 'toggle', default: true,
+    sizeMB: 1100, nCtx: 4096, thinking: 'toggle', default: true, bundled: true,
     gguf: { repo: 'unsloth/Qwen3-1.7B-GGUF', file: 'Qwen3-1.7B-Q4_K_M.gguf' },
   },
   {
