@@ -3,16 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f1115" />
+  <meta name="theme-color" content="#faf9f5" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#262624" media="(prefers-color-scheme: dark)" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <title>Math Solver</title>
+  <title>오일러 · Math Solver</title>
 </head>
 <body>
   <div id="app">
     <header>
-      <h1>∑ Math Solver</h1>
-      <span id="status" class="badge">대기 중</span>
-      <button id="settingsBtn" aria-label="설정">⚙︎</button>
+      <h1>오일러</h1>
+      <button id="statusBtn" class="badge" aria-label="모델 상태"><i class="dot"></i><span id="status">대기 중</span></button>
+      <span class="spacer"></span>
+      <button id="newBtn" class="icon" aria-label="새 대화" title="새 대화">＋</button>
+      <button id="settingsBtn" class="icon" aria-label="설정" title="설정">⚙︎</button>
     </header>
 
     <section id="setup" class="card">
@@ -38,21 +41,38 @@
       <p class="hint">처음 한 번만 모델을 내려받고(인터넷 필요), 이후에는 기기에 저장되어 비행기 모드에서도 동작합니다.</p>
     </section>
 
+    <div id="empty">
+      <div class="mark">∑</div>
+      <h2>무엇을 풀어볼까요?</h2>
+      <p>인터넷 없이, 제한 없이, 내 기기에서 수학 문제를 풀어드려요.</p>
+      <div class="chips">
+        <button type="button" class="chip" data-q="x^2 - 5x + 6 = 0 을 풀어줘">x² − 5x + 6 = 0 풀기</button>
+        <button type="button" class="chip" data-q="∫₀¹ x·eˣ dx 를 계산해줘">∫₀¹ x·eˣ dx</button>
+        <button type="button" class="chip" data-q="세 변이 3, 4, 5 인 삼각형의 넓이와 외접원 반지름은?">삼각형 넓이와 외접원</button>
+        <button type="button" class="chip" data-q="행렬 [[2,1],[1,2]] 의 고윳값과 고유벡터를 구해줘">고윳값 구하기</button>
+      </div>
+    </div>
+
     <main id="chat" aria-live="polite"></main>
 
     <form id="form">
-      <textarea id="input" rows="2" placeholder="수학 문제를 입력하세요. 예) x^2 - 5x + 6 = 0 을 풀어줘"></textarea>
-      <div class="actions">
-        <button type="button" id="stopBtn" hidden>중지</button>
-        <button type="submit" id="sendBtn" class="primary" disabled>풀기</button>
+      <div class="composer">
+        <textarea id="input" rows="1" placeholder="수학 문제를 입력하세요"></textarea>
+        <div class="bar">
+          <button type="button" id="modelChip" class="chip small" title="모델 변경">모델 선택</button>
+          <span class="spacer"></span>
+          <button type="button" id="stopBtn" class="round" aria-label="중지" hidden>■</button>
+          <button type="submit" id="sendBtn" class="round accent" aria-label="풀기" disabled>↑</button>
+        </div>
       </div>
+      <p class="disclaimer">AI 답변은 틀릴 수 있어요. 중요한 결과는 꼭 검산하세요.</p>
     </form>
   </div>
 
   <dialog id="settings">
     <form method="dialog">
       <h2>설정</h2>
-      <label>사고 모드 (Qwen3 등, 정확하지만 느림)
+      <label class="check">사고 모드 (Qwen3 등, 정확하지만 느림)
         <input type="checkbox" id="thinking" checked />
       </label>
       <label>Temperature <output id="tempOut">0.3</output>

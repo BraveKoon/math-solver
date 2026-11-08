@@ -9,6 +9,7 @@ const store = {
   set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
 
+const setStatus = (text, ok = false) => { $('status').textContent = text; $('statusBtn').classList.toggle('ok', ok); };
 let engine = null;
 let busy = false;
 let history = store.get('history', []); // [{role, content}]
@@ -40,12 +41,30 @@ $('settings').addEventListener('close', () => {
   store.set('sys', $('sys').value); store.set('thinking', $('thinking').checked);
   store.set('temp', +$('temp').value); store.set('maxTokens', +$('maxTokens').value);
 });
-$('clearBtn').onclick = () => { history = []; store.set('history', []); $('chat').innerHTML = ''; };
+const clearChat = () => { history = []; store.set('history', []); $('chat').innerHTML = ''; syncEmpty(); };
+$('clearBtn').onclick = () => { clearChat(); $('settings').close(); };
+$('newBtn').onclick = clearChat;
 $('clearCacheBtn').onclick = async () => {
   if (!confirm('내려받은 모델을 삭제할까요? 다시 쓰려면 인터넷이 필요합니다.')) return;
   await new BrowserEngine().clearCache($('model').value).catch(() => {});
   alert('삭제했습니다.');
 };
+
+// ---------- 빈 화면 / 입력창 ----------
+function syncEmpty() { $('app').classList.toggle('has-msgs', $('chat').children.length > 0); }
+function updateModelChip() {
+  const m = MODELS.find((x) => x.id === $('model').value);
+  $('modelChip').textContent = $('backend').value === 'browser' ? (m?.name ?? '모델') : $('ollamaModel').value;
+}
+function refreshSend() { $('sendBtn').disabled = busy || !engine || !$('input').value.trim(); }
+function autoGrow() { const t = $('input'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 152) + 'px'; }
+$('input').addEventListener('input', () => { autoGrow(); refreshSend(); });
+document.querySelectorAll('.chip[data-q]').forEach((c) => (c.onclick = () => {
+  $('input').value = c.dataset.q; autoGrow(); refreshSend(); $('input').focus();
+  if (!engine) $('setup').scrollIntoView({ block: 'start' });
+}));
+$('model').addEventListener('change', updateModelChip);
+updateModelChip();
 
 // ---------- 채팅 렌더링 ----------
 function addMsg(role, content) {
@@ -53,10 +72,12 @@ function addMsg(role, content) {
   el.className = `msg ${role}`;
   if (role === 'user') el.textContent = content; else el.innerHTML = renderAnswer(content);
   $('chat').append(el);
+  syncEmpty();
   $('chat').scrollTop = $('chat').scrollHeight;
   return el;
 }
 history.forEach((m) => addMsg(m.role === 'user' ? 'user' : 'bot', m.content));
+syncEmpty();
 
 // ---------- 저장소: 모델 캐시가 iOS에 의해 지워지지 않도록 영구 저장 요청 + 용량 점검 ----------
 async function ensureStorage() {
@@ -73,7 +94,7 @@ async function ensureStorage() {
 $('loadBtn').onclick = async () => {
   const kind = $('backend').value;
   $('loadBtn').disabled = true; $('progress').hidden = false; $('progress').value = 0;
-  $('status').textContent = '불러오는 중'; $('status').className = 'badge';
+  setStatus('불러오는 중');
   try {
     if (kind === 'browser') await ensureStorage();
     engine = kind === 'browser' ? new BrowserEngine() : new OllamaEngine();
@@ -82,20 +103,20 @@ $('loadBtn').onclick = async () => {
       : { url: $('ollamaUrl').value, model: $('ollamaModel').value };
     await engine.load(cfg, (p, t) => { $('progress').value = p; $('progressText').textContent = t; });
     store.set('model', $('model').value); store.set('ollamaUrl', $('ollamaUrl').value); store.set('ollamaModel', $('ollamaModel').value);
-    $('status').textContent = '준비됨'; $('status').className = 'badge ok';
-    $('setup').hidden = true; $('sendBtn').disabled = false; $('input').focus();
+    setStatus('준비됨', true); updateModelChip();
+    $('setup').hidden = true; refreshSend(); $('input').focus();
   } catch (e) {
     engine = null;
     $('progressText').textContent = '오류: ' + (e.message || e);
-    $('status').textContent = '오류';
+    setStatus('오류');
   } finally { $('loadBtn').disabled = false; }
 };
-$('status').onclick = () => { $('setup').hidden = false; };
+$('statusBtn').onclick = $('modelChip').onclick = () => { $('setup').hidden = false; $('setup').scrollIntoView({ block: 'start' }); };
 
 // ---------- 풀이 ----------
 async function solve(question) {
   if (busy || !engine || !question.trim()) return;
-  busy = true; $('sendBtn').hidden = true; $('stopBtn').hidden = false;
+  busy = true; $('sendBtn').hidden = true; $('stopBtn').hidden = false; refreshSend();
   history.push({ role: 'user', content: question });
   addMsg('user', question);
   const el = addMsg('bot', '');
@@ -117,15 +138,15 @@ async function solve(question) {
   } catch (e) {
     el.textContent = '오류: ' + (e.message || e);
     history.pop();
-  } finally { busy = false; $('sendBtn').hidden = false; $('stopBtn').hidden = true; }
+  } finally { busy = false; $('sendBtn').hidden = false; $('stopBtn').hidden = true; refreshSend(); }
 }
 
 $('form').onsubmit = (e) => {
   e.preventDefault();
-  const q = $('input').value; $('input').value = '';
+  const q = $('input').value; $('input').value = ''; autoGrow(); refreshSend();
   solve(q);
 };
 $('input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $('form').requestSubmit(); }
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && !IS_IOS && matchMedia('(pointer:fine)').matches) { e.preventDefault(); if (!$('sendBtn').disabled) $('form').requestSubmit(); }
 });
 $('stopBtn').onclick = () => engine?.stop();
