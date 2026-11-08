@@ -46,7 +46,7 @@ jobs:
       - name: Verify export-compliance key in the archived app
         run: |
           P="$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app/Info.plist"
-          echo "ITSAppUsesNonEncryption = $(/usr/libexec/PlistBuddy -c 'Print :ITSAppUsesNonEncryption' "$P" 2>&1)"
+          echo "ITSAppUsesNonExemptEncryption = $(/usr/libexec/PlistBuddy -c 'Print :ITSAppUsesNonExemptEncryption' "$P" 2>&1)"
           echo "CFBundleIdentifier = $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$P" 2>&1)"
           echo "Version = $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$P" 2>&1) ($(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$P" 2>&1))"
 
