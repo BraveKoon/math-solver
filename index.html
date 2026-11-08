@@ -123,6 +123,17 @@
       <h2>설정</h2>
       <span class="circle-spacer"></span>
     </div>
+    <div class="card form" id="engineCard">
+      <p class="form-title">실행 엔진</p>
+      <label class="radio-row">
+        <input type="radio" name="engine" value="native" />
+        <span><b>llama.cpp</b><small>기기에서 직접 실행 · 빠르고 메모리 효율적 · 이미지 지원</small></span>
+      </label>
+      <label class="radio-row">
+        <input type="radio" name="engine" value="web" />
+        <span><b>웹 엔진 (WebGPU)</b><small>브라우저 엔진으로 실행 · 이미지 미지원 · iOS 26 이상</small></span>
+      </label>
+    </div>
     <div class="card form">
       <label>창의성(Temperature) <output id="tempOut">0.6</output>
         <input type="range" id="temp" min="0" max="1" step="0.1" value="0.6" />

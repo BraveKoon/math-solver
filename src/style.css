@@ -136,8 +136,17 @@ input[role=switch]:checked::after{transform:translateX(20px)}
 .sheet-note{color:var(--mut);font-size:.78rem;text-align:center;margin:6px 8px 0;word-break:keep-all}
 .card.form{padding:6px 18px 12px}
 .card.form label{display:block;margin:12px 0 4px;font-size:.85rem;color:var(--mut)}
-.card.form input:not([type=range]),.card.form textarea{width:100%;margin-top:6px;background:var(--bg);border:1px solid var(--bd);border-radius:12px;padding:10px 12px}
+.card.form input:not([type=range]):not([type=radio]),.card.form textarea{width:100%;margin-top:6px;background:var(--bg);border:1px solid var(--bd);border-radius:12px;padding:10px 12px}
 .card.form input[type=range]{width:100%;accent-color:var(--acc)}
+.form-title{margin:12px 0 2px;font-size:.85rem;color:var(--mut)}
+.card.form label.radio-row{display:flex;align-items:center;gap:12px;margin:0;padding:12px 0;border-bottom:1px solid var(--bd);color:var(--fg);font-size:1rem;cursor:pointer}
+.card.form label.radio-row:last-child{border-bottom:0}
+.radio-row input{appearance:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--bd);margin:0;flex:none;display:grid;place-items:center}
+.radio-row input:checked{border-color:var(--acc)}
+.radio-row input:checked::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--acc)}
+.radio-row input:disabled{opacity:.4}
+.radio-row b{font-weight:500}
+.radio-row small{display:block;color:var(--mut);font-size:.8rem;word-break:keep-all}
 .text-btn{display:block;width:100%;text-align:left;border:0;background:none;padding:12px 0;font-size:1rem;border-bottom:1px solid var(--bd)}
 .text-btn:last-child{border-bottom:0}
 .text-btn.danger{color:#d0423a}

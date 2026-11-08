@@ -13,7 +13,11 @@ const pref = {
 
 // ---------------------------------------------------------------- 엔진/모델
 const useMock = import.meta.env.DEV && new URLSearchParams(location.search).has('mock');
-const engine = useMock ? new MockEngine() : nativeAvailable() ? new NativeEngine() : new WebEngine();
+// 설정에서 고른 엔진. llama.cpp는 iPhone 앱에서만 가능하고, 브라우저에서는 항상 웹 엔진.
+const canNative = nativeAvailable();
+const enginePref = pref.get('engine', 'native');
+const engine = useMock ? new MockEngine()
+  : canNative && enginePref !== 'web' ? new NativeEngine() : new WebEngine();
 const MODELS = modelsFor(engine.kind === 'web' ? 'web' : 'native');
 const byId = (id) => MODELS.find((m) => m.id === id);
 
@@ -445,6 +449,25 @@ $('clearAll').onclick = () => {
   openSession(null);
   $('settings').close();
 };
+// 실행 엔진 선택(설정). 바꾸면 해당 엔진의 모델 목록으로 다시 불러온다.
+for (const r of document.querySelectorAll('input[name="engine"]')) {
+  r.checked = r.value === (engine.kind === 'web' || (!canNative && !useMock) ? 'web' : enginePref);
+  if (r.value === 'native' && !canNative && !useMock) {
+    r.disabled = true;
+    r.closest('label').querySelector('small').textContent += ' — iPhone 앱에서만 사용할 수 있어요';
+  }
+  r.onchange = () => {
+    if (busy) { toast('답변이 끝난 뒤에 바꿀 수 있어요.'); r.checked = false; return; }
+    if (!confirm('실행 엔진을 바꾸면 앱을 다시 불러옵니다. 엔진마다 모델을 따로 받아야 해요. 바꿀까요?')) {
+      document.querySelector(`input[name="engine"][value="${enginePref}"]`).checked = true;
+      return;
+    }
+    pref.set('engine', r.value);
+    pref.set('loading', null);
+    location.reload();
+  };
+}
+
 $('aboutInfo').textContent = engine.kind === 'native' ? '실행 엔진: llama.cpp (Metal, 기기 내 실행)'
   : engine.kind === 'web' ? '실행 엔진: WebLLM (WebGPU, 브라우저 내 실행)' : '개발 모드(가짜 엔진)';
 $('engineBadge').textContent = engine.kind === 'native' ? 'llama.cpp · 기기 내 실행' : engine.kind === 'web' ? 'WebGPU · 브라우저 실행' : '개발 모드';
