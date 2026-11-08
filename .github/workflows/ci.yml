@@ -14,6 +14,15 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  models:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - name: Check GGUF download URLs on Hugging Face
+        run: node scripts/check-models.mjs
+
   ios:
     runs-on: macos-26
     needs: web
@@ -22,9 +31,20 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
+      - name: Fetch llama.cpp xcframework
+        run: npm run fetch:llama
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Show llama.cpp API used by the plugin
+        run: |
+          H=plugins/capacitor-llama/ios/Frameworks/llama.xcframework/ios-arm64/llama.framework/Headers
+          ls plugins/capacitor-llama/ios/Frameworks/llama.xcframework
+          cat plugins/capacitor-llama/ios/Frameworks/llama.xcframework/.tag
+          grep -n "struct mtmd_input_text {" -A5 $H/mtmd.h || true
       - run: npm run build && npx cap sync ios
-      - name: Build for iOS Simulator (no signing)
+      # 공식 llama.xcframework에는 시뮬레이터용이 없어 실기기(arm64) 대상으로 서명 없이 컴파일만 확인
+      - name: Build for iOS device (no signing)
         run: |
           xcodebuild -project ios/App/App.xcodeproj -scheme App \
-            -destination 'generic/platform=iOS Simulator' \
+            -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO build
