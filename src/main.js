@@ -15,8 +15,17 @@ let busy = false;
 let history = store.get('history', []); // [{role, content}]
 
 // ---------- UI 초기화 ----------
-MODELS.forEach((m) => $('model').add(new Option(m.label, m.id)));
+// 모델 로딩 중 iOS가 앱 화면을 강제 종료(메모리 부족)하면 localStorage의 'loading' 표시가 남는다. 다음 실행 때 감지.
+const crashed = new Set(store.get('crashed', []));
+const stale = store.get('loading', null);
+if (stale) { crashed.add(stale); store.set('crashed', [...crashed]); store.set('loading', null); }
+MODELS.forEach((m) => $('model').add(new Option(crashed.has(m.id) ? `⚠ ${m.label} (이전에 비정상 종료)` : m.label, m.id)));
 $('model').value = store.get('model', MODELS[0].id);
+if (stale) {
+  const m = MODELS.find((x) => x.id === stale);
+  if (m) $('model').value = MODELS[0].id;
+  $('progressText').textContent = `⚠ '${m?.name ?? stale}' 불러오는 중 앱이 종료되었습니다(메모리 부족으로 추정). 더 작은 모델을 선택하세요.`;
+}
 $('backend').value = store.get('backend', 'browser');
 $('ollamaUrl').value = store.get('ollamaUrl', $('ollamaUrl').value);
 $('ollamaModel').value = store.get('ollamaModel', $('ollamaModel').value);
@@ -101,12 +110,14 @@ $('loadBtn').onclick = async () => {
     const cfg = kind === 'browser'
       ? { modelId: $('model').value }
       : { url: $('ollamaUrl').value, model: $('ollamaModel').value };
+    if (kind === 'browser') store.set('loading', $('model').value);
     await engine.load(cfg, (p, t) => { $('progress').value = p; $('progressText').textContent = t; });
+    store.set('loading', null); crashed.delete($('model').value); store.set('crashed', [...crashed]);
     store.set('model', $('model').value); store.set('ollamaUrl', $('ollamaUrl').value); store.set('ollamaModel', $('ollamaModel').value);
     setStatus('준비됨', true); updateModelChip();
     $('setup').hidden = true; refreshSend(); $('input').focus();
   } catch (e) {
-    engine = null;
+    engine = null; store.set('loading', null);
     $('progressText').textContent = '오류: ' + (e.message || e);
     setStatus('오류');
   } finally { $('loadBtn').disabled = false; }
