@@ -8,8 +8,9 @@
     "build": "vite build",
     "test": "vitest run",
     "preview": "vite preview --host",
-    "ios": "npm run fetch:llama && vite build && cap sync ios && cap open ios",
-    "fetch:llama": "bash plugins/capacitor-llama/scripts/fetch-llama.sh"
+    "ios": "npm run fetch:llama && vite build && cap sync ios && npm run fetch:model && cap open ios",
+    "fetch:llama": "bash plugins/capacitor-llama/scripts/fetch-llama.sh",
+    "fetch:model": "node scripts/fetch-bundled-model.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.6.0",

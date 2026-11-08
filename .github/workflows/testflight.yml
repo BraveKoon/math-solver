@@ -29,6 +29,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
       - run: npm run build && npx cap sync ios
+      - name: Cache bundled default model
+        uses: actions/cache@v4
+        with:
+          path: ios/App/App/BundledModels
+          key: bundled-models-${{ hashFiles('src/models.js') }}
+      - name: Bundle default model into the app
+        run: node scripts/fetch-bundled-model.mjs && du -sh ios/App/App/BundledModels/*
 
       - name: Write App Store Connect API key
         run: |

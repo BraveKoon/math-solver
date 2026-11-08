@@ -167,6 +167,9 @@ function modelRow(m) {
   if (st.downloading) {
     meta += ` · 내려받는 중 ${Math.round((st.progress ?? 0) * 100)}%`;
     action = '<button class="get" data-act="cancel">취소</button>';
+  } else if (st.downloaded && (st.bundled || m.bundled && engine.kind === 'mock')) {
+    meta += ' · 앱에 내장';
+    if (m.id === selected.id) action = CHECK;
   } else if (st.downloaded) {
     meta += ' · 다운로드됨 <button class="link" data-act="delete">삭제</button>';
     if (m.id === selected.id) action = CHECK;

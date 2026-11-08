@@ -46,6 +46,7 @@ public class LlamaPlugin: CAPPlugin, CAPBridgedPlugin {
         for id in ids {
             models[id] = [
                 "downloaded": ModelStore.shared.isComplete(id),
+                "bundled": ModelStore.shared.isBundled(id),
                 "downloading": ModelStore.shared.isDownloading(id),
                 "bytes": ModelStore.shared.bytesOnDisk(id),
             ]
