@@ -33,6 +33,8 @@ jobs:
       - run: npm ci
       - name: Fetch llama.cpp xcframework
         run: npm run fetch:llama
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - name: Show llama.cpp API used by the plugin
         run: |
           H=plugins/capacitor-llama/ios/Frameworks/llama.xcframework/ios-arm64/llama.framework/Headers
