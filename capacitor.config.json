@@ -18,7 +18,8 @@
   "plugins": {
     "Keyboard": {
       "resize": "native",
-      "resizeOnFullScreen": true
+      "resizeOnFullScreen": true,
+      "autoBackdropColor": "dom"
     }
   }
 }
