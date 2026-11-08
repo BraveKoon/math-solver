@@ -4,6 +4,7 @@ import { NativeEngine, MockEngine, UnsupportedEngine, nativeAvailable } from './
 import { renderAnswer } from './render.js';
 import { loadSessions, saveSessions, currentId, setCurrentId, uid, titleFrom, relativeDay } from './sessions.js';
 import { prepareImage } from './images.js';
+import { Keyboard } from '@capacitor/keyboard';
 
 const $ = (id) => document.getElementById(id);
 const pref = {
@@ -468,6 +469,12 @@ $('input').addEventListener('keydown', (e) => {
 });
 $('form').onsubmit = (e) => { e.preventDefault(); send(); };
 $('stopBtn').onclick = () => engine.stop();
+
+// ---------------------------------------------------------------- 키보드(iOS 앱)
+if (engine.kind === 'native') {
+  Keyboard.setAccessoryBarVisible({ isVisible: false }).catch(() => {});
+  Keyboard.addListener('keyboardDidShow', () => scrollDown()).catch?.(() => {});
+}
 
 // ---------------------------------------------------------------- 시작
 renderChat();

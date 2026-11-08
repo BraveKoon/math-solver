@@ -4,14 +4,21 @@
   "webDir": "dist",
   "ios": {
     "contentInset": "never",
-    "backgroundColor": "#0f1115",
-    "limitsNavigationsToAppBoundDomains": false
+    "backgroundColor": "#faf9f5",
+    "limitsNavigationsToAppBoundDomains": false,
+    "scrollEnabled": false
   },
   "experimental": {
     "ios": {
       "spm": {
         "swiftToolsVersion": "6.2"
       }
+    }
+  },
+  "plugins": {
+    "Keyboard": {
+      "resize": "native",
+      "resizeOnFullScreen": true
     }
   }
 }
