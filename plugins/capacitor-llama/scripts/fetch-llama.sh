@@ -6,17 +6,22 @@ cd "$(dirname "$0")/.."
 DEST="ios/Frameworks"
 TAG="${LLAMA_TAG:-$(cat scripts/LLAMA_TAG 2>/dev/null || true)}"
 API=https://api.github.com/repos/ggml-org/llama.cpp/releases
-REL_URL="$API/latest"; [ -n "$TAG" ] && REL_URL="$API/tags/$TAG"
 AUTH=(); [ -n "${GITHUB_TOKEN:-}" ] && AUTH=(-H "Authorization: Bearer $GITHUB_TOKEN")
-REL=$(curl -fsSL "${AUTH[@]}" "$REL_URL")
-TAG=$(printf '%s' "$REL" | python3 -c 'import sys,json;print(json.load(sys.stdin)["tag_name"])')
-# 릴리스 이름 규칙이 바뀌어도 되도록 파일명을 추정하지 않고 xcframework 자산을 찾는다
-ASSET=$(printf '%s' "$REL" | python3 -c 'import sys,json
-a=[x["browser_download_url"] for x in json.load(sys.stdin)["assets"] if "xcframework" in x["name"] and x["name"].endswith(".zip")]
-print(a[0] if a else "")')
-if [ -z "$ASSET" ]; then
-  echo "No xcframework asset in llama.cpp release $TAG. Assets:" >&2
-  printf '%s' "$REL" | python3 -c 'import sys,json;[print("  ",x["name"]) for x in json.load(sys.stdin)["assets"]]' >&2
+if [ -n "$TAG" ]; then
+  RELS="[$(curl -fsSL "${AUTH[@]}" "$API/tags/$TAG")]"
+else
+  # "latest" 릴리스에 바이너리가 없을 수 있어(예: nightly 표시용) 최근 릴리스 중 xcframework가 있는 가장 새 것을 고른다
+  RELS=$(curl -fsSL "${AUTH[@]}" "$API?per_page=30")
+fi
+read -r TAG ASSET < <(printf '%s' "$RELS" | python3 -c 'import sys,json
+for r in json.load(sys.stdin):
+    a=[x["browser_download_url"] for x in r.get("assets",[]) if "xcframework" in x["name"] and x["name"].endswith(".zip")]
+    if a: print(r["tag_name"], a[0]); break
+else: print("", "")')
+if [ -z "${ASSET:-}" ]; then
+  echo "No llama.cpp release with an xcframework asset found${LLAMA_TAG:+ for $LLAMA_TAG}. Recent releases:" >&2
+  printf '%s' "$RELS" | python3 -c 'import sys,json
+for r in json.load(sys.stdin)[:5]: print("  ", r["tag_name"], [x["name"] for x in r.get("assets",[])][:12])' >&2
   exit 1
 fi
 if [ -f "$DEST/llama.xcframework/.tag" ] && [ "$(cat "$DEST/llama.xcframework/.tag")" = "$TAG" ]; then
