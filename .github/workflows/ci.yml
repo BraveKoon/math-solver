@@ -42,8 +42,9 @@ jobs:
           cat plugins/capacitor-llama/ios/Frameworks/llama.xcframework/.tag
           grep -n "struct mtmd_input_text {" -A5 $H/mtmd.h || true
       - run: npm run build && npx cap sync ios
-      - name: Build for iOS Simulator (no signing)
+      # 공식 llama.xcframework에는 시뮬레이터용이 없어 실기기(arm64) 대상으로 서명 없이 컴파일만 확인
+      - name: Build for iOS device (no signing)
         run: |
           xcodebuild -project ios/App/App.xcodeproj -scheme App \
-            -destination 'generic/platform=iOS Simulator' \
+            -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO build
