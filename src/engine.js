@@ -1,5 +1,5 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
-import { ggufFiles, IS_IOS } from './models.js';
+import { ggufFiles } from './models.js';
 
 /*
  공통 인터페이스
@@ -13,7 +13,6 @@ import { ggufFiles, IS_IOS } from './models.js';
 
 const Llama = registerPlugin('Llama');
 export const nativeAvailable = () => Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('Llama');
-export const hasWebGPU = () => typeof navigator !== 'undefined' && !!navigator.gpu;
 
 /** Qwen3 하이브리드 모델은 사용자 메시지 끝의 /no_think 로 생각 단계를 끈다. */
 function withThinking(messages, model, thinking) {
@@ -74,82 +73,18 @@ export class NativeEngine {
   stop() { return Llama.stop(); }
 }
 
-// ---------------------------------------------------------------- 웹/PWA: WebLLM
-// 모델 실행 라이브러리(wasm)를 앱에 번들(public/wasm)해서 첫 실행에도 GitHub 접속이 필요 없게 함.
-const BUNDLED_LIBS = [
-  'Qwen3-0.6B-q4f16_1-MLC', 'Qwen3-1.7B-q4f16_1-MLC', 'Qwen3-4B-q4f16_1-MLC', 'Qwen2.5-Math-1.5B-Instruct-q4f16_1-MLC',
-];
-
-export class WebEngine {
-  kind = 'web';
+// ---------------------------------------------------------------- 브라우저: 실행 불가 안내
+export class UnsupportedEngine {
+  kind = 'unsupported';
   supportsImages = false;
-
-  async lib() {
-    if (!this._lib) this._lib = await import('@mlc-ai/web-llm');
-    return this._lib;
-  }
-
-  async appConfig() {
-    const { prebuiltAppConfig } = await this.lib();
-    const model_list = prebuiltAppConfig.model_list.map((m) => {
-      if (!BUNDLED_LIBS.includes(m.model_id)) return m;
-      const file = m.model_lib.split('/').pop();
-      return { ...m, model_lib: new URL(`wasm/${file}`, document.baseURI).href };
-    });
-    return { ...prebuiltAppConfig, model_list, useIndexedDBCache: false };
-  }
-
-  async status(models) {
-    const { hasModelInCache } = await this.lib();
-    const cfg = await this.appConfig();
-    const out = {};
-    for (const m of models) {
-      let downloaded = false;
-      try { downloaded = await hasModelInCache(m.mlc, cfg); } catch {}
-      out[m.id] = { downloaded, downloading: false };
-    }
-    return out;
-  }
-
-  // WebLLM은 불러오면서 내려받는다.
-  download(model, onProgress) { return this.load(model, onProgress); }
+  async status(models) { return Object.fromEntries(models.map((m) => [m.id, { downloaded: false, downloading: false }])); }
+  fail() { return Promise.reject(new Error('브라우저에서는 실행할 수 없어요. iPhone 앱을 사용하세요.')); }
+  download() { return this.fail(); }
   cancel() {}
-
-  async remove(model) {
-    const { deleteModelAllInfoInCache } = await this.lib();
-    if (this.loadedId === model.id) { await this.engine?.unload(); this.engine = null; this.loadedId = null; }
-    await deleteModelAllInfoInCache(model.mlc, await this.appConfig());
-  }
-
-  async load(model, onProgress) {
-    if (!hasWebGPU()) throw new Error('이 브라우저는 WebGPU를 지원하지 않습니다. iPhone은 iOS 26 이상, PC/안드로이드는 최신 Chrome이 필요합니다.');
-    if (this.loadedId === model.id) return;
-    const { CreateMLCEngine } = await this.lib();
-    await this.engine?.unload?.();
-    this.engine = await CreateMLCEngine(
-      model.mlc,
-      { appConfig: await this.appConfig(), initProgressCallback: (p) => onProgress?.(p.progress ?? 0, p.text) },
-      IS_IOS ? { context_window_size: 4096 } : undefined,
-    );
-    this.loadedId = model.id;
-  }
-
-  async generate({ messages, images = [], temperature, maxTokens, thinking }, onToken) {
-    if (images.length) throw new Error('웹 버전은 이미지를 읽을 수 없습니다. iPhone 앱의 오일러 비전을 사용하세요.');
-    const chunks = await this.engine.chat.completions.create({
-      messages, stream: true, temperature, max_tokens: maxTokens,
-      extra_body: { enable_thinking: !!thinking },
-    });
-    let reason = 'eos';
-    for await (const c of chunks) {
-      const t = c.choices[0]?.delta?.content;
-      if (t) onToken(t);
-      if (c.choices[0]?.finish_reason) reason = c.choices[0].finish_reason;
-    }
-    return reason;
-  }
-
-  stop() { this.engine?.interruptGenerate(); }
+  remove() { return this.fail(); }
+  load() { return this.fail(); }
+  generate() { return this.fail(); }
+  stop() {}
 }
 
 // ---------------------------------------------------------------- 개발용 가짜 엔진 (?mock)

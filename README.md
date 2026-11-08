@@ -6,7 +6,7 @@
 ## 구조
 - **iPhone 앱 (기본)**: Capacitor 네이티브 플러그인(`plugins/capacitor-llama`)으로 [llama.cpp](https://github.com/ggml-org/llama.cpp)를 Metal GPU에서 실행. 모델(GGUF)은 앱 안의 모델 선택 시트에서 Hugging Face로부터 한 번 내려받고 이후 완전 오프라인.
 - **이미지 첨부**: llama.cpp의 `mtmd`(멀티모달)로 비전 모델(오일러 비전, Qwen2.5-VL 3B)이 사진 속 문제를 읽고 풉니다.
-- **웹/PWA**: 브라우저에서는 [WebLLM](https://github.com/mlc-ai/web-llm)(WebGPU)로 실행(이미지 미지원). 갤럭시는 이 웹 버전 또는 추후 Android 플러그인.
+- **실행 환경**: iPhone 앱 전용(llama.cpp). 브라우저에서 열면 화면만 볼 수 있어요. 갤럭시는 추후 Android용 llama.cpp 플러그인으로 지원 예정.
 - **화면**: 왼쪽 서랍에 세션 목록(검색·삭제), 하단 시트에서 모델 선택·다운로드·삭제, 입력창 ＋로 이미지 첨부. 세션은 기기에만 저장.
 - 모델 목록: `src/models.js` (오일러 미니/오일러/오일러 플러스/오일러 비전, 더 많은 모델: 오일러 매스 등)
 

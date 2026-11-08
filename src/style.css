@@ -80,6 +80,8 @@ header{display:flex;align-items:center;gap:10px;padding:max(10px,env(safe-area-i
 .msg .meta{font:400 .75rem var(--sans);color:var(--mut);margin-top:4px}
 details.think{margin:0 0 10px;color:var(--mut);font:400 .88rem/1.6 var(--sans);border-left:2px solid var(--bd);padding-left:12px}
 details.think summary{cursor:pointer;list-style-position:inside}
+details.think.live summary{animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.45}}
 
 /* ---------- 입력창 ---------- */
 form#form{padding:6px 0 10px}

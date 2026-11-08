@@ -35,7 +35,7 @@ export function renderAnswer(raw) {
     out += renderMarkdown(rest.slice(0, s));
     const e = rest.indexOf('</think>', s);
     const body = rest.slice(s + 7, e < 0 ? undefined : e);
-    out += `<details class="think"${e < 0 ? ' open' : ''}><summary>${e < 0 ? '생각 중…' : '추론 과정 보기'}</summary>${renderMarkdown(body)}</details>`;
+    out += `<details class="think${e < 0 ? ' live' : ''}"><summary>${e < 0 ? '생각하는 중…' : '추론 과정 보기'}</summary>${renderMarkdown(body)}</details>`;
     if (e < 0) return out;
     rest = rest.slice(e + 8);
   }
