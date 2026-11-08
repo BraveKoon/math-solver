@@ -43,6 +43,13 @@ jobs:
             DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}"
 
+      - name: Verify export-compliance key in the archived app
+        run: |
+          P="$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app/Info.plist"
+          echo "ITSAppUsesNonEncryption = $(/usr/libexec/PlistBuddy -c 'Print :ITSAppUsesNonEncryption' "$P" 2>&1)"
+          echo "CFBundleIdentifier = $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$P" 2>&1)"
+          echo "Version = $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$P" 2>&1) ($(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$P" 2>&1))"
+
       - name: Export and upload to App Store Connect
         run: |
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
