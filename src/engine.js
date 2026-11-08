@@ -3,7 +3,7 @@ import { IS_IOS } from './models.js';
 
 // 모델 실행 라이브러리(wasm)를 앱에 번들(public/wasm)해서 첫 실행에도 GitHub 접속이 필요 없게 함.
 const BUNDLED_LIBS = [
-  'Qwen3-0.6B-q4f16_1-MLC', 'Qwen3-1.7B-q4f16_1-MLC', 'Qwen3-4B-q4f16_1-MLC', 'Qwen3.5-4B-q4f16_1-MLC', 'Qwen2.5-Math-1.5B-Instruct-q4f16_1-MLC',
+  'Qwen3-0.6B-q4f16_1-MLC', 'Qwen3-1.7B-q4f16_1-MLC', 'Qwen3-4B-q4f16_1-MLC', 'Qwen2.5-Math-1.5B-Instruct-q4f16_1-MLC',
 ];
 function localAppConfig() {
   const model_list = prebuiltAppConfig.model_list.map((m) => {

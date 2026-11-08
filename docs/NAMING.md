@@ -6,7 +6,7 @@
 | 오일러 미니 | Qwen3 0.6B | 초경량, 가장 빠름 |
 | **오일러** (기본) | Qwen3 1.7B | iPhone 16 기본 추천 |
 | 오일러 플러스 | Qwen3 4B | 정확도 높음, 메모리 여유 필요 |
-| 오일러 플러스 N | Qwen3.5 4B | 최신 4B |
+| 오일러 플러스 N | Qwen3.5 4B | 최신 4B (PC 전용, iPhone은 메모리 부족) |
 | 오일러 프로 | Qwen3 8B | PC/큰 GPU (iPhone 제외) |
 | 가우스 | DeepSeek-R1 Distill 7B | 추론 특화, PC |
 | 오일러 매스 | Qwen2.5-Math 1.5B | 수학 전용(영어 위주) |
