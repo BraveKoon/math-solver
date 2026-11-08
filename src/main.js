@@ -1,9 +1,10 @@
 import './style.css';
 import { modelsFor, defaultModel, DEFAULT_SYSTEM } from './models.js';
-import { NativeEngine, WebEngine, MockEngine, nativeAvailable } from './engine.js';
+import { NativeEngine, MockEngine, UnsupportedEngine, nativeAvailable } from './engine.js';
 import { renderAnswer } from './render.js';
 import { loadSessions, saveSessions, currentId, setCurrentId, uid, titleFrom, relativeDay } from './sessions.js';
 import { prepareImage } from './images.js';
+import { Keyboard } from '@capacitor/keyboard';
 
 const $ = (id) => document.getElementById(id);
 const pref = {
@@ -13,12 +14,9 @@ const pref = {
 
 // ---------------------------------------------------------------- 엔진/모델
 const useMock = import.meta.env.DEV && new URLSearchParams(location.search).has('mock');
-// 설정에서 고른 엔진. llama.cpp는 iPhone 앱에서만 가능하고, 브라우저에서는 항상 웹 엔진.
-const canNative = nativeAvailable();
-const enginePref = pref.get('engine', 'native');
-const engine = useMock ? new MockEngine()
-  : canNative && enginePref !== 'web' ? new NativeEngine() : new WebEngine();
-const MODELS = modelsFor(engine.kind === 'web' ? 'web' : 'native');
+// 실행 엔진은 llama.cpp(iPhone 앱) 하나. 브라우저에서 열면 안내만 표시(개발용 ?mock 제외).
+const engine = useMock ? new MockEngine() : nativeAvailable() ? new NativeEngine() : new UnsupportedEngine();
+const MODELS = modelsFor();
 const byId = (id) => MODELS.find((m) => m.id === id);
 
 let selected = byId(pref.get('model')) ?? defaultModel(MODELS);
@@ -199,9 +197,7 @@ function renderModels() {
   $('thinking').checked = t === 'always' ? true : t === 'none' ? false : pref.get('thinking', false);
   $('thinking').disabled = t !== 'toggle';
   const gb = engine.freeBytes ? ` · 남은 저장 공간 ${(engine.freeBytes / 1e9).toFixed(1)}GB` : '';
-  $('storageInfo').textContent = (engine.kind === 'web'
-    ? '웹 버전: 모델은 브라우저 저장소에 보관돼요.'
-    : '모델은 처음 한 번만 내려받고 이후에는 인터넷 없이 동작해요. Wi-Fi에서 받으세요.') + gb;
+  $('storageInfo').textContent = '모델은 처음 한 번만 내려받고 이후에는 인터넷 없이 동작해요. Wi-Fi에서 받으세요.' + gb;
 }
 
 async function startDownload(m) {
@@ -216,7 +212,6 @@ async function startDownload(m) {
       if (Date.now() - last > 300) { last = Date.now(); renderModels(); }
     });
     modelState[m.id] = { downloaded: true, downloading: false };
-    if (engine.kind === 'web') loadedId = m.id;   // 웹은 받으면서 이미 메모리에 올라감
     toast(`'${m.name}' 준비 완료`);
     chooseModel(m, { keepOpen: true });
   } catch (e) {
@@ -248,7 +243,7 @@ function chooseModel(m, { keepOpen = false } = {}) {
   renderModels();
   updateChip();
   if (!keepOpen) $('modelSheet').close();
-  if (engine.kind === 'native' || engine.kind === 'mock') ensureLoaded(m).catch((e) => toast(errText(e)));
+  ensureLoaded(m).catch((e) => toast(errText(e)));
 }
 
 async function ensureLoaded(m) {
@@ -342,7 +337,7 @@ async function send() {
     toast(vision ? `이미지는 '${vision.name}' 모델에서 읽을 수 있어요.` : '이 버전은 이미지를 지원하지 않아요.');
     return openSheet();
   }
-  if (!modelState[m.id]?.downloaded && engine.kind !== 'web') {
+  if (!modelState[m.id]?.downloaded) {
     toast(`'${m.name}' 모델을 먼저 받아 주세요.`);
     return openSheet();
   }
@@ -374,7 +369,13 @@ async function send() {
   el.innerHTML = '<span class="meta">생각하는 중…</span>';
   let raw = '';
   let scheduled = false;
-  const paint = () => { scheduled = false; el.innerHTML = renderAnswer(raw); scrollDown(); };
+  const paint = () => {
+    scheduled = false;
+    const open = [...el.querySelectorAll('details.think')].map((d) => d.open);
+    el.innerHTML = renderAnswer(raw);
+    el.querySelectorAll('details.think').forEach((d, i) => { d.open = !!open[i]; });
+    scrollDown();
+  };
 
   try {
     await ensureLoaded(m);
@@ -449,28 +450,9 @@ $('clearAll').onclick = () => {
   openSession(null);
   $('settings').close();
 };
-// 실행 엔진 선택(설정). 바꾸면 해당 엔진의 모델 목록으로 다시 불러온다.
-for (const r of document.querySelectorAll('input[name="engine"]')) {
-  r.checked = r.value === (engine.kind === 'web' || (!canNative && !useMock) ? 'web' : enginePref);
-  if (r.value === 'native' && !canNative && !useMock) {
-    r.disabled = true;
-    r.closest('label').querySelector('small').textContent += ' — iPhone 앱에서만 사용할 수 있어요';
-  }
-  r.onchange = () => {
-    if (busy) { toast('답변이 끝난 뒤에 바꿀 수 있어요.'); r.checked = false; return; }
-    if (!confirm('실행 엔진을 바꾸면 앱을 다시 불러옵니다. 엔진마다 모델을 따로 받아야 해요. 바꿀까요?')) {
-      document.querySelector(`input[name="engine"][value="${enginePref}"]`).checked = true;
-      return;
-    }
-    pref.set('engine', r.value);
-    pref.set('loading', null);
-    location.reload();
-  };
-}
-
 $('aboutInfo').textContent = engine.kind === 'native' ? '실행 엔진: llama.cpp (Metal, 기기 내 실행)'
-  : engine.kind === 'web' ? '실행 엔진: WebLLM (WebGPU, 브라우저 내 실행)' : '개발 모드(가짜 엔진)';
-$('engineBadge').textContent = engine.kind === 'native' ? 'llama.cpp · 기기 내 실행' : engine.kind === 'web' ? 'WebGPU · 브라우저 실행' : '개발 모드';
+  : engine.kind === 'mock' ? '개발 모드(가짜 엔진)' : '브라우저에서는 실행할 수 없어요. iPhone 앱을 사용하세요.';
+$('engineBadge').textContent = engine.kind === 'native' ? 'llama.cpp · 기기 내 실행' : engine.kind === 'mock' ? '개발 모드' : 'iPhone 앱 전용';
 
 document.querySelectorAll('.chip[data-q]').forEach((c) => (c.onclick = () => {
   $('input').value = c.dataset.q;
@@ -488,11 +470,18 @@ $('input').addEventListener('keydown', (e) => {
 $('form').onsubmit = (e) => { e.preventDefault(); send(); };
 $('stopBtn').onclick = () => engine.stop();
 
+// ---------------------------------------------------------------- 키보드(iOS 앱)
+if (engine.kind === 'native') {
+  Keyboard.setAccessoryBarVisible({ isVisible: false }).catch(() => {});
+  Keyboard.addListener('keyboardDidShow', () => scrollDown()).catch?.(() => {});
+}
+
 // ---------------------------------------------------------------- 시작
 renderChat();
 renderSessions();
 updateChip();
-if (stale) toast(`'${byId(stale)?.name ?? stale}'을 불러오다 앱이 종료됐어요(메모리 부족 추정). 더 작은 모델을 쓰세요.`);
+if (engine.kind === 'unsupported') toast('이 앱은 iPhone 앱에서 실행돼요. 브라우저에서는 화면만 볼 수 있어요.');
+else if (stale) toast(`'${byId(stale)?.name ?? stale}'을 불러오다 앱이 종료됐어요(메모리 부족 추정). 더 작은 모델을 쓰세요.`);
 refreshStatus().then(() => {
   // 앱(네이티브)에서는 받아 둔 모델을 미리 올려 첫 답변을 빠르게
   if (engine.kind === 'native' && modelState[selected.id]?.downloaded && !crashed.has(selected.id)) {

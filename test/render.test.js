@@ -12,7 +12,9 @@ describe('renderAnswer', () => {
   });
   it('wraps think blocks, including unclosed streaming ones', () => {
     expect(renderAnswer('<think>a</think>b')).toContain('<details class="think">');
-    expect(renderAnswer('<think>partial')).toContain('open');
+    const live = renderAnswer('<think>partial');
+    expect(live).toContain('class="think live"');
+    expect(live).not.toMatch(/<details[^>]*open/); // 생각하는 중에도 기본은 접힘
   });
   it('repairs a missing opening think tag', () => {
     const h = renderAnswer('reasoning here</think>answer');
