@@ -64,6 +64,12 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>문제를 사진으로 찍어 풀이에 첨부하려면 카메라 접근이 필요합니다.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>사진 보관함의 문제 사진을 풀이에 첨부하려면 사진 접근이 필요합니다.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>사진을 저장하려면 사진 보관함 접근이 필요합니다.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 </dict>
