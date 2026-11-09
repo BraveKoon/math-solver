@@ -9,7 +9,7 @@
   --bg:#262624;--side:#1f1e1d;--card:#30302e;--fg:#faf9f5;--mut:#9c9a92;--acc:#d97757;--acc-fg:#1f1e1d;
   --bd:#3d3d3a;--user:#393937;--hover:#34342f;--dark:#faf9f5;--dark-fg:#1f1e1d;--shadow:0 2px 16px rgba(0,0,0,.3);}}
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%;overscroll-behavior:none}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior:none}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:16px/1.6 var(--sans);overflow:hidden}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -66,7 +66,10 @@ header{display:flex;align-items:center;gap:10px;padding:max(10px,env(safe-area-i
 #app:not(.has-msgs) #chat{display:none}
 
 #chat{flex:1;overflow-y:auto;padding:8px 2px 16px;display:flex;flex-direction:column;gap:22px}
-.msg{word-break:break-word;overflow-x:auto}
+.msg{flex-shrink:0;min-width:0;word-break:break-word;overflow-wrap:anywhere}
+.msg.bot h1,.msg.bot h2,.msg.bot h3,.msg.bot h4,.msg.bot h5,.msg.bot h6{font-size:1em;font-weight:700;line-height:inherit;margin:.9em 0 .3em}
+.msg.bot small,.msg.bot big,.msg.bot sub,.msg.bot sup{font-size:inherit}
+.msg.bot table{display:block;max-width:100%;overflow-x:auto;border-collapse:collapse}
 .msg.user{align-self:flex-end;max-width:88%;background:var(--user);border-radius:20px;padding:10px 16px;white-space:pre-wrap}
 .msg.user .imgs{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin:2px -6px 8px}
 .msg.user .imgs img{max-width:220px;max-height:160px;width:auto;height:auto;object-fit:contain;background:#fff;border-radius:12px;display:block}
