@@ -8,20 +8,12 @@ import { ggufFiles } from './models.js';
    cancel(model), remove(model)
    load(model, onProg)       -> 메모리에 올리기
    generate(opts, onToken)   -> 종료 사유. opts: { model, messages, images, temperature, maxTokens, thinking }
+   ocr(dataUrl)              -> 사진 속 글자(비전 모델이 아닐 때 사진 대신 모델에 전달)
    stop()
 */
 
 const Llama = registerPlugin('Llama');
 export const nativeAvailable = () => Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('Llama');
-
-/** Qwen3 하이브리드 모델은 사용자 메시지 끝의 /no_think 로 생각 단계를 끈다. */
-function withThinking(messages, model, thinking) {
-  if (model.thinking !== 'toggle' || thinking) return messages;
-  const out = messages.map((m) => ({ ...m }));
-  const last = out.findLastIndex((m) => m.role === 'user');
-  if (last >= 0) out[last].content += ' /no_think';
-  return out;
-}
 
 // ---------------------------------------------------------------- iPhone: llama.cpp
 export class NativeEngine {
@@ -29,7 +21,10 @@ export class NativeEngine {
   supportsImages = true;
 
   async status(models) {
-    const r = await Llama.status({ ids: models.map((m) => m.id) });
+    const r = await Llama.status({
+      ids: models.map((m) => m.id),
+      files: Object.fromEntries(models.map((m) => [m.id, ggufFiles(m).map((f) => f.name)])),
+    });
     this.freeBytes = r.freeBytes;
     return r.models;
   }
@@ -60,7 +55,9 @@ export class NativeEngine {
     const sub = await Llama.addListener('token', (e) => onToken(e.text));
     try {
       const r = await Llama.generate({
-        messages: withThinking(messages, model, thinking),
+        messages,
+        // Qwen3/Qwen3.5: 사고 모드를 끄면 빈 <think></think>를 미리 넣어 바로 답하게 한다(공식 템플릿의 enable_thinking=false와 같음)
+        noThink: model.thinking === 'toggle' && !thinking,
         images: images.map((d) => d.replace(/^data:[^,]+,/, '')),
         temperature, maxTokens,
       });
@@ -71,6 +68,11 @@ export class NativeEngine {
   }
 
   stop() { return Llama.stop(); }
+
+  async ocr(dataUrl) {
+    const r = await Llama.recognizeText({ image: dataUrl.replace(/^data:[^,]+,/, '') });
+    return (r.text || '').trim();
+  }
 }
 
 // ---------------------------------------------------------------- 브라우저: 실행 불가 안내
@@ -84,6 +86,7 @@ export class UnsupportedEngine {
   remove() { return this.fail(); }
   load() { return this.fail(); }
   generate() { return this.fail(); }
+  ocr() { return this.fail(); }
   stop() {}
 }
 
@@ -91,7 +94,7 @@ export class UnsupportedEngine {
 export class MockEngine {
   kind = 'mock';
   supportsImages = true;
-  state = { euler: true };
+  state = { euler: true, 'euler-coder': true };
 
   async status(models) {
     return Object.fromEntries(models.map((m) => [m.id, { downloaded: !!this.state[m.id], downloading: false }]));
@@ -111,9 +114,9 @@ export class MockEngine {
   async remove(model) { delete this.state[model.id]; }
   async load() { await new Promise((r) => setTimeout(r, 200)); }
 
-  async generate({ images = [] }, onToken) {
+  async generate({ model, images = [] }, onToken) {
     this.stopped = false;
-    const text = (images.length ? '사진 속 문제: $x^2-5x+6=0$\n\n' : '') +
+    const text = model?.coder ? '`src/solve.py`\n```python\nimport math\n\ndef roots(a, b, c):\n    d = math.sqrt(b * b - 4 * a * c)\n    return (-b + d) / (2 * a), (-b - d) / (2 * a)\n\nprint(roots(1, -5, 6))\n```\n근의 공식을 그대로 옮긴 코드예요.' : (images.length ? '사진 속 문제: $x^2-5x+6=0$\n\n' : '') +
       '<think>인수분해를 먼저 시도한다.</think>\n**풀이**\n\n$$x^2-5x+6=(x-2)(x-3)=0$$\n\n$$\\boxed{x=2\\ \\text{또는}\\ x=3}$$';
     for (const ch of text.match(/.{1,4}/gs)) {
       if (this.stopped) return 'stopped';
@@ -124,4 +127,6 @@ export class MockEngine {
   }
 
   stop() { this.stopped = true; }
+
+  async ocr() { await new Promise((r) => setTimeout(r, 150)); return '다음 방정식을 풀어라.\nx^2 - 5x + 6 = 0'; }
 }

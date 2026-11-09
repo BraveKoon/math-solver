@@ -1,9 +1,10 @@
 import './style.css';
-import { modelsFor, defaultModel, DEFAULT_SYSTEM } from './models.js';
+import { modelsFor, defaultModel, DEFAULT_SYSTEM, CODER_SYSTEM } from './models.js';
 import { NativeEngine, MockEngine, UnsupportedEngine, nativeAvailable } from './engine.js';
 import { renderAnswer } from './render.js';
 import { loadSessions, saveSessions, currentId, setCurrentId, uid, titleFrom, relativeDay } from './sessions.js';
 import { prepareImage } from './images.js';
+import * as gh from './github.js';
 import { Keyboard } from '@capacitor/keyboard';
 
 const $ = (id) => document.getElementById(id);
@@ -118,9 +119,54 @@ function msgEl(m) {
   } else {
     el.className = 'msg bot';
     el.innerHTML = renderAnswer(m.content);
+    decorateCode(el);
   }
   return el;
 }
+
+/** 답변 속 코드 블록에 '복사', 'GitHub에 저장' 버튼을 붙인다(추론 과정 안의 코드는 제외). */
+function decorateCode(el) {
+  for (const pre of el.querySelectorAll('pre')) {
+    if (pre.closest('details.think') || pre.previousElementSibling?.classList.contains('code-bar')) continue;
+    const lang = (pre.querySelector('code')?.className.match(/language-([\w+#-]+)/) || [])[1] || '';
+    const bar = document.createElement('div');
+    bar.className = 'code-bar';
+    bar.innerHTML = `<span>${lang.replace(/[<>&"]/g, '') || 'code'}</span><button type="button" data-act="copy">복사</button><button type="button" data-act="gh">GitHub에 저장</button>`;
+    pre.before(bar);
+  }
+}
+
+$('chat').addEventListener('click', async (e) => {
+  const btn = e.target.closest('.code-bar button');
+  if (!btn) return;
+  const bar = btn.parentElement;
+  const pre = bar.nextElementSibling;
+  const code = pre?.innerText.replace(/\n$/, '') ?? '';
+  if (btn.dataset.act === 'copy') {
+    try { await navigator.clipboard.writeText(code); toast('복사했어요.'); } catch { toast('복사하지 못했어요.'); }
+    return;
+  }
+  const cfg = gh.getConfig();
+  if (!cfg.repo || !(await gh.getToken())) {
+    toast('설정에서 GitHub 저장소와 토큰을 먼저 연결하세요.');
+    return $('settings').showModal();
+  }
+  const hint = bar.previousElementSibling?.textContent.trim().split('\n').pop() ?? '';
+  const path = prompt(`${cfg.repo}${cfg.branch ? ' (' + cfg.branch + ')' : ''}에 저장할 파일 경로`, gh.suggestPath(bar.firstElementChild.textContent, hint));
+  if (!path) return;
+  btn.disabled = true;
+  btn.textContent = '저장 중…';
+  try {
+    await gh.saveFile(path.trim(), code + '\n', `오일러에서 저장: ${path.trim()}`);
+    btn.textContent = '저장됨 ✓';
+    toast(`${cfg.repo}/${path.trim()}에 커밋했어요.`);
+  } catch (err) {
+    btn.textContent = 'GitHub에 저장';
+    toast(errText(err));
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 function addMsg(m) {
   const el = msgEl(m);
@@ -299,7 +345,7 @@ function renderAttachments() {
 }
 
 $('attachBtn').onclick = () => {
-  if (!engine.supportsImages) return toast('웹 버전은 이미지를 읽을 수 없어요. iPhone 앱에서 오일러 비전을 사용하세요.');
+  if (!engine.supportsImages) return toast('브라우저에서는 사진을 읽을 수 없어요. iPhone 앱을 사용하세요.');
   $('fileInput').click();
 };
 
@@ -312,7 +358,7 @@ $('fileInput').onchange = async (e) => {
   renderAttachments();
   if (pending.length && !selected.vision) {
     const vision = MODELS.find((m) => m.vision);
-    if (vision) toast(`이미지를 읽으려면 '${vision.name}' 모델을 선택하세요.`);
+    if (vision) toast(`'${selected.name}'은(는) 사진 속 글자를 읽어 풀어요. 그래프·도형 문제는 '${vision.name}'이 더 정확해요.`);
   }
 };
 
@@ -329,17 +375,15 @@ function autoGrow() {
 }
 
 const stripThink = (s) => s.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/^[\s\S]*<\/think>/, '').trim();
+const withOcr = (content, ocr) => (ocr
+  ? `${content}\n\n[첨부한 사진에서 기기 글자 인식으로 읽은 내용 — 수식 기호가 틀렸을 수 있으니 문맥으로 바로잡아 풀어줘]\n${ocr}`
+  : content);
 const errText = (e) => (e?.message || String(e)).replace(/^Error:\s*/, '');
 
 async function send() {
   const text = $('input').value.trim();
   if (busy || (!text && !pending.length)) return;
   const m = selected;
-  if (pending.length && !m.vision) {
-    const vision = MODELS.find((x) => x.vision);
-    toast(vision ? `이미지는 '${vision.name}' 모델에서 읽을 수 있어요.` : '이 버전은 이미지를 지원하지 않아요.');
-    return openSheet();
-  }
   if (!modelState[m.id]?.downloaded) {
     toast(`'${m.name}' 모델을 먼저 받아 주세요.`);
     return openSheet();
@@ -381,18 +425,32 @@ async function send() {
   };
 
   try {
+    // 비전 모델이 아니면 사진 대신 기기 내장 글자 인식(OCR) 결과를 문제 글로 넘긴다
+    if (images.length && !m.vision) {
+      el.innerHTML = '<span class="meta">사진 속 글자를 읽는 중…</span>';
+      const texts = [];
+      for (const img of images) texts.push(await engine.ocr(img.send));
+      if (!texts.some(Boolean)) {
+        const vision = MODELS.find((x) => x.vision);
+        throw new Error('사진에서 글자를 찾지 못했어요.' + (vision ? ` 그림·도형 문제는 '${vision.name}' 모델을 써 보세요.` : ''));
+      }
+      userMsg.ocr = texts.map((t, i) => (texts.length > 1 ? `(사진 ${i + 1})\n` : '') + t).join('\n\n');
+      persist();
+      el.innerHTML = '<span class="meta">생각하는 중…</span>';
+    }
     await ensureLoaded(m);
-    const history = session.messages.slice(-12).map(({ role, content }) =>
-      ({ role, content: role === 'assistant' ? stripThink(content) : content }));
+    const history = session.messages.slice(-12).map(({ role, content, ocr }) =>
+      ({ role, content: role === 'assistant' ? stripThink(content) : withOcr(content, ocr) }));
     const reason = await engine.generate({
       model: m,
-      messages: [{ role: 'system', content: pref.get('sys', DEFAULT_SYSTEM) }, ...history],
-      images: images.map((i) => i.send),
+      messages: [{ role: 'system', content: m.coder ? CODER_SYSTEM : pref.get('sys', DEFAULT_SYSTEM) }, ...history],
+      images: m.vision ? images.map((i) => i.send) : [],
       temperature: pref.get('temp', 0.6),
       maxTokens: pref.get('maxTokens', 2048),
       thinking: m.thinking === 'always' || (m.thinking === 'toggle' && pref.get('thinking', false)),
     }, (t) => { raw += t; if (!scheduled) { scheduled = true; requestAnimationFrame(paint); } });
     paint();
+    decorateCode(el);
     const note = reason === 'length' ? '답변이 길어 중간에 멈췄어요. 설정에서 최대 답변 길이를 늘릴 수 있어요.'
       : reason === 'context' ? '대화가 길어져 멈췄어요. 새 세션을 시작하세요.' : '';
     if (note) el.insertAdjacentHTML('beforeend', `<p class="meta">${note}</p>`);
@@ -446,6 +504,43 @@ $('temp').oninput = () => { $('tempOut').textContent = $('temp').value; pref.set
 $('maxTokens').onchange = () => pref.set('maxTokens', Math.max(256, +$('maxTokens').value || 2048));
 $('sys').onchange = () => pref.set('sys', $('sys').value);
 $('resetSys').onclick = () => { $('sys').value = DEFAULT_SYSTEM; pref.set('sys', DEFAULT_SYSTEM); toast('기본값으로 되돌렸어요.'); };
+// GitHub 연결 설정
+{
+  const cfg = gh.getConfig();
+  $('ghRepo').value = cfg.repo;
+  $('ghBranch').value = cfg.branch;
+  gh.getToken().then((t) => { $('ghToken').placeholder = t ? '저장됨 (바꾸려면 새로 입력)' : 'github_pat_…'; }).catch(() => {});
+  const saveCfg = () => {
+    const repo = gh.normalizeRepo($('ghRepo').value);
+    if ($('ghRepo').value.trim() && !repo) return toast('저장소는 owner/name 형식으로 입력하세요.');
+    $('ghRepo').value = repo;
+    gh.setConfig({ repo, branch: $('ghBranch').value.trim() });
+  };
+  $('ghRepo').onchange = saveCfg;
+  $('ghBranch').onchange = saveCfg;
+  $('ghToken').onchange = async () => {
+    const t = $('ghToken').value.trim();
+    if (!t) return;
+    try { await gh.setToken(t); $('ghToken').value = ''; $('ghToken').placeholder = '저장됨 (바꾸려면 새로 입력)'; toast('토큰을 키체인에 저장했어요.'); }
+    catch (e) { toast(errText(e)); }
+  };
+  $('ghCheck').onclick = async () => {
+    saveCfg();
+    if ($('ghToken').value.trim()) await $('ghToken').onchange();
+    $('ghStatus').textContent = '확인 중…';
+    try {
+      const r = await gh.checkConnection();
+      $('ghStatus').textContent = r.canPush ? `연결됨: ${r.fullName} (기본 브랜치 ${r.defaultBranch})` : `${r.fullName}에 쓰기 권한이 없어요. 토큰 권한을 확인하세요.`;
+    } catch (e) { $('ghStatus').textContent = errText(e); }
+  };
+  $('ghDisconnect').onclick = async () => {
+    await gh.setToken('');
+    gh.setConfig({ repo: '', branch: '' });
+    $('ghRepo').value = ''; $('ghBranch').value = ''; $('ghToken').value = '';
+    $('ghToken').placeholder = 'github_pat_…';
+    $('ghStatus').textContent = '연결을 해제했어요.';
+  };
+}
 $('clearAll').onclick = () => {
   if (!confirm('모든 세션을 삭제할까요?')) return;
   sessions = [];
