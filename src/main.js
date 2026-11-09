@@ -299,7 +299,7 @@ function renderAttachments() {
 }
 
 $('attachBtn').onclick = () => {
-  if (!engine.supportsImages) return toast('웹 버전은 이미지를 읽을 수 없어요. iPhone 앱에서 오일러 비전을 사용하세요.');
+  if (!engine.supportsImages) return toast('브라우저에서는 사진을 읽을 수 없어요. iPhone 앱을 사용하세요.');
   $('fileInput').click();
 };
 
@@ -312,7 +312,7 @@ $('fileInput').onchange = async (e) => {
   renderAttachments();
   if (pending.length && !selected.vision) {
     const vision = MODELS.find((m) => m.vision);
-    if (vision) toast(`이미지를 읽으려면 '${vision.name}' 모델을 선택하세요.`);
+    if (vision) toast(`'${selected.name}'은(는) 사진 속 글자를 읽어 풀어요. 그래프·도형 문제는 '${vision.name}'이 더 정확해요.`);
   }
 };
 
@@ -329,17 +329,15 @@ function autoGrow() {
 }
 
 const stripThink = (s) => s.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/^[\s\S]*<\/think>/, '').trim();
+const withOcr = (content, ocr) => (ocr
+  ? `${content}\n\n[첨부한 사진에서 기기 글자 인식으로 읽은 내용 — 수식 기호가 틀렸을 수 있으니 문맥으로 바로잡아 풀어줘]\n${ocr}`
+  : content);
 const errText = (e) => (e?.message || String(e)).replace(/^Error:\s*/, '');
 
 async function send() {
   const text = $('input').value.trim();
   if (busy || (!text && !pending.length)) return;
   const m = selected;
-  if (pending.length && !m.vision) {
-    const vision = MODELS.find((x) => x.vision);
-    toast(vision ? `이미지는 '${vision.name}' 모델에서 읽을 수 있어요.` : '이 버전은 이미지를 지원하지 않아요.');
-    return openSheet();
-  }
   if (!modelState[m.id]?.downloaded) {
     toast(`'${m.name}' 모델을 먼저 받아 주세요.`);
     return openSheet();
@@ -381,13 +379,26 @@ async function send() {
   };
 
   try {
+    // 비전 모델이 아니면 사진 대신 기기 내장 글자 인식(OCR) 결과를 문제 글로 넘긴다
+    if (images.length && !m.vision) {
+      el.innerHTML = '<span class="meta">사진 속 글자를 읽는 중…</span>';
+      const texts = [];
+      for (const img of images) texts.push(await engine.ocr(img.send));
+      if (!texts.some(Boolean)) {
+        const vision = MODELS.find((x) => x.vision);
+        throw new Error('사진에서 글자를 찾지 못했어요.' + (vision ? ` 그림·도형 문제는 '${vision.name}' 모델을 써 보세요.` : ''));
+      }
+      userMsg.ocr = texts.map((t, i) => (texts.length > 1 ? `(사진 ${i + 1})\n` : '') + t).join('\n\n');
+      persist();
+      el.innerHTML = '<span class="meta">생각하는 중…</span>';
+    }
     await ensureLoaded(m);
-    const history = session.messages.slice(-12).map(({ role, content }) =>
-      ({ role, content: role === 'assistant' ? stripThink(content) : content }));
+    const history = session.messages.slice(-12).map(({ role, content, ocr }) =>
+      ({ role, content: role === 'assistant' ? stripThink(content) : withOcr(content, ocr) }));
     const reason = await engine.generate({
       model: m,
       messages: [{ role: 'system', content: pref.get('sys', DEFAULT_SYSTEM) }, ...history],
-      images: images.map((i) => i.send),
+      images: m.vision ? images.map((i) => i.send) : [],
       temperature: pref.get('temp', 0.6),
       maxTokens: pref.get('maxTokens', 2048),
       thinking: m.thinking === 'always' || (m.thinking === 'toggle' && pref.get('thinking', false)),

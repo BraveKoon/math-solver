@@ -18,12 +18,12 @@ export const CATALOG = [
     gguf: { repo: 'unsloth/Qwen3-4B-Thinking-2507-GGUF', file: 'Qwen3-4B-Thinking-2507-Q4_K_M.gguf' },
   },
   {
-    id: 'euler-vision', name: '오일러 비전', desc: '사진 속 문제를 읽고 풀이', detail: 'Qwen2.5-VL 3B',
-    sizeMB: 2800, nCtx: 4096, thinking: 'none', vision: true,
+    id: 'euler-vision', name: '오일러 비전', desc: '사진 속 그래프·도형까지 직접 보고 풀이', detail: 'Qwen3-VL 4B',
+    sizeMB: 3000, nCtx: 4096, thinking: 'none', vision: true,
     gguf: {
-      repo: 'ggml-org/Qwen2.5-VL-3B-Instruct-GGUF',
-      file: 'Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf',
-      mmproj: 'mmproj-Qwen2.5-VL-3B-Instruct-Q8_0.gguf',
+      repo: 'ggml-org/Qwen3-VL-4B-Instruct-GGUF',
+      file: 'Qwen3-VL-4B-Instruct-Q4_K_M.gguf',
+      mmproj: 'mmproj-Qwen3-VL-4B-Instruct-Q8_0.gguf',
     },
   },
   // ---- 더 많은 모델 ----
@@ -50,6 +50,6 @@ Solve any math problem the user gives, with no topic restrictions.
 - Show clear step-by-step reasoning, then state the final answer.
 - Write all math in LaTeX: inline with $...$, display with $$...$$.
 - Put the final answer in \\boxed{...}.
-- If an image is attached, first transcribe the problem from it, then solve it.
+- If an image or text read from a photo is attached, first restate the problem, then solve it.
 - If the problem is ambiguous, state your assumption and proceed.
 - Double-check arithmetic before answering.`;

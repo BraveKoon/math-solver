@@ -8,6 +8,7 @@ import { ggufFiles } from './models.js';
    cancel(model), remove(model)
    load(model, onProg)       -> 메모리에 올리기
    generate(opts, onToken)   -> 종료 사유. opts: { model, messages, images, temperature, maxTokens, thinking }
+   ocr(dataUrl)              -> 사진 속 글자(비전 모델이 아닐 때 사진 대신 모델에 전달)
    stop()
 */
 
@@ -29,7 +30,10 @@ export class NativeEngine {
   supportsImages = true;
 
   async status(models) {
-    const r = await Llama.status({ ids: models.map((m) => m.id) });
+    const r = await Llama.status({
+      ids: models.map((m) => m.id),
+      files: Object.fromEntries(models.map((m) => [m.id, ggufFiles(m).map((f) => f.name)])),
+    });
     this.freeBytes = r.freeBytes;
     return r.models;
   }
@@ -71,6 +75,11 @@ export class NativeEngine {
   }
 
   stop() { return Llama.stop(); }
+
+  async ocr(dataUrl) {
+    const r = await Llama.recognizeText({ image: dataUrl.replace(/^data:[^,]+,/, '') });
+    return (r.text || '').trim();
+  }
 }
 
 // ---------------------------------------------------------------- 브라우저: 실행 불가 안내
@@ -84,6 +93,7 @@ export class UnsupportedEngine {
   remove() { return this.fail(); }
   load() { return this.fail(); }
   generate() { return this.fail(); }
+  ocr() { return this.fail(); }
   stop() {}
 }
 
@@ -124,4 +134,6 @@ export class MockEngine {
   }
 
   stop() { this.stopped = true; }
+
+  async ocr() { await new Promise((r) => setTimeout(r, 150)); return '다음 방정식을 풀어라.\nx^2 - 5x + 6 = 0'; }
 }

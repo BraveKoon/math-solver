@@ -1,14 +1,14 @@
 :root{
-  /* 앱 로고(남색 #0f1115 + 하늘색 #7cc4ff) 기준 팔레트 */
-  --bg:#f6f7fa;--side:#eceff4;--card:#ffffff;--fg:#14171f;--mut:#6b7385;--acc:#0a6cc4;--acc-fg:#fff;
-  --bd:#dde1ea;--user:#e6f0ff;--hover:#e4e8f0;--dark:#14171f;--dark-fg:#f6f7fa;--shadow:0 2px 16px rgba(15,17,21,.07);
+  /* 앱 로고(남색·하늘색) 기반: 회색 대신 푸른 기가 도는 바탕 + 남색 잉크 글자 */
+  --bg:#f1f5fc;--side:#e6edf8;--card:#ffffff;--fg:#1b2643;--mut:#62708f;--acc:#2f7fe0;--acc-fg:#fff;
+  --bd:#d6e0f0;--user:#dbe8fc;--hover:#dfe7f5;--dark:#1b2643;--dark-fg:#f1f5fc;--shadow:0 2px 16px rgba(27,38,67,.08);
   --sans:system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
   --serif:ui-serif,"Iowan Old Style",Georgia,"AppleMyungjo","Noto Serif KR",serif;
   --drawer:min(84vw,320px);
 }
 @media (prefers-color-scheme: dark){:root{
-  --bg:#0f1115;--side:#0b0d10;--card:#171a21;--fg:#e8eaf0;--mut:#8b93a7;--acc:#7cc4ff;--acc-fg:#04121f;
-  --bd:#272c38;--user:#1f2a3d;--hover:#1c2029;--dark:#e8eaf0;--dark-fg:#0f1115;--shadow:0 2px 16px rgba(0,0,0,.4);}}
+  --bg:#1d2740;--side:#172036;--card:#26314d;--fg:#eaf0fb;--mut:#a3b0cc;--acc:#7cc4ff;--acc-fg:#0e1a33;
+  --bd:#36435f;--user:#2f3f63;--hover:#2b3755;--dark:#eaf0fb;--dark-fg:#1d2740;--shadow:0 2px 16px rgba(0,0,0,.25);}}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior:none}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:16px/1.6 var(--sans);overflow:hidden}
