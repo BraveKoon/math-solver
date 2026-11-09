@@ -29,6 +29,7 @@ GitHub 저장소 → **Actions** → **TestFlight** → **Run workflow**.
 - iPhone에 TestFlight 앱을 설치하고 같은 Apple ID로 로그인하면 설치할 수 있습니다.
 
 ## 자주 막히는 곳
+- `Your account has reached the maximum number of certificates`: 예전 워크플로가 실행마다 개발용 인증서("Apple Development: Created via API")를 만들어 한도가 찬 경우입니다. 지금은 배포용 인증서로만 서명하므로 더 쌓이지 않습니다. developer.apple.com → Certificates에서 오래된 "Created via API" 개발용 인증서를 정리(Revoke)하면 됩니다.
 - `No profiles for 'com.bravekoon.mathsolver.app'`: App ID가 등록되지 않았거나 API 키 역할이 낮습니다(Admin/App Manager 필요).
 - 엔타이틀먼트(Increased Memory Limit) 오류: 1번에서 Capability를 켠 뒤 다시 실행.
 - 첫 외부 테스터 초대에는 Apple의 베타 심사가 필요합니다. 본인(내부 테스터)은 바로 설치됩니다.

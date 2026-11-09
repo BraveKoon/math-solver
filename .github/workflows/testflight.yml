@@ -42,7 +42,10 @@ jobs:
           mkdir -p "$RUNNER_TEMP/keys"
           echo "${{ secrets.ASC_KEY_P8_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/keys/AuthKey_${KEY_ID}.p8"
 
-      - name: Archive (cloud-managed signing)
+      # 배포용(Apple Distribution) 클라우드 관리 인증서로 바로 서명한다.
+      # 기본값(개발용 서명)은 매 실행마다 새 'Apple Development: Created via API' 인증서를 만들어
+      # 계정 인증서 한도를 채워 버리므로(실제로 발생) 쓰지 않는다.
+      - name: Archive (cloud-managed distribution signing)
         run: |
           xcodebuild archive \
             -project ios/App/App.xcodeproj -scheme App -configuration Release \
@@ -52,6 +55,7 @@ jobs:
             -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_${KEY_ID}.p8" \
             -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID" \
             DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}"
 
       - name: Verify export-compliance key in the archived app
