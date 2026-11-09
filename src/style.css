@@ -13,7 +13,11 @@
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior:none}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:16px/1.6 var(--sans);overflow:hidden}
 button,input,select,textarea{font:inherit;color:inherit}
-button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;-webkit-user-select:none;user-select:none;position:relative;transition:transform .08s,opacity .08s}
+button:active:not(:disabled){transform:scale(.94);opacity:.7}
+/* 작은 버튼도 손가락으로 누르기 쉽게: 보이는 크기는 그대로, 터치 영역만 최소 44px로 넓힌다 */
+button::after{content:"";position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
+#app,dialog{touch-action:manipulation}
 svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
 [hidden]{display:none!important}
 .spacer{flex:1}
@@ -25,13 +29,16 @@ svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
   padding:max(14px,env(safe-area-inset-top)) 14px max(14px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
   transform:translateX(-100%);transition:transform .28s cubic-bezier(.2,.8,.2,1)}
 .drawer-open #drawer{transform:none}
-#scrim{position:fixed;inset:0;background:rgba(0,0,0,.18);z-index:15}
+#scrim{position:fixed;inset:0;background:rgba(0,0,0,.18);z-index:15;cursor:pointer;touch-action:none;opacity:0;pointer-events:none;transition:opacity .28s}
+.drawer-open #scrim{opacity:1;pointer-events:auto}
+#drawer,#main{will-change:transform;backface-visibility:hidden}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 .drawer-head{display:flex;align-items:center;gap:8px;padding:2px 4px 10px}
 .drawer-head h1{margin:0;flex:1;font:700 1.75rem var(--serif);letter-spacing:-.02em}
 #search{margin:0 4px 8px;border:1px solid var(--bd);background:var(--card);border-radius:14px;padding:10px 14px;outline:none}
 .drawer-menu{display:flex;flex-direction:column;gap:2px;margin-bottom:10px}
 .menu-item{display:flex;align-items:center;gap:14px;border:0;background:transparent;text-align:left;padding:12px 10px;border-radius:12px;font-size:1.05rem}
-.menu-item:active,.menu-item:hover{background:var(--hover)}
+.menu-item:active{background:var(--hover)}
 .session-list{flex:1;overflow-y:auto;margin:0 -4px;padding:0 4px}
 .session-group{margin:14px 10px 6px;font-size:.82rem;color:var(--mut)}
 .session{display:flex;align-items:center;gap:6px;border-radius:12px}
@@ -39,7 +46,7 @@ svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke
 .session button.open{flex:1;min-width:0;text-align:left;border:0;background:transparent;padding:11px 10px;font-size:1rem;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .session button.del{border:0;background:transparent;color:var(--mut);width:34px;height:34px;border-radius:10px;opacity:.7}
-.session button.del:hover{background:var(--bd)}
+
 .session-empty{color:var(--mut);font-size:.9rem;padding:10px}
 .drawer-foot{display:flex;align-items:center;gap:10px;padding-top:12px}
 .engine-badge{flex:1;font-size:.75rem;color:var(--mut)}
@@ -62,7 +69,7 @@ header{display:flex;align-items:center;gap:10px;padding:max(10px,env(safe-area-i
 #empty p{margin:8px 0 22px;color:var(--mut);font-size:.95rem;word-break:keep-all;text-wrap:balance}
 .chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:520px}
 .chip{border:1px solid var(--bd);background:transparent;border-radius:99px;padding:8px 14px;font-size:.9rem}
-.chip:active,.chip:hover{background:var(--user)}
+.chip:active{background:var(--user)}
 .has-msgs #empty{display:none}
 #app:not(.has-msgs) #chat{display:none}
 
@@ -100,7 +107,7 @@ form#form{padding:6px 0 10px}
 .model-chip{display:inline-flex;align-items:center;gap:4px;border:0;background:transparent;color:var(--mut);font-size:.88rem;padding:6px 8px;border-radius:10px;max-width:58vw}
 .model-chip span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .model-chip svg{width:16px;height:16px}
-.model-chip:hover{background:var(--hover)}
+.model-chip:active{background:var(--hover)}
 .round{width:36px;height:36px;border-radius:50%;border:1px solid var(--bd);background:transparent;display:grid;place-items:center;padding:0}
 .round.accent{background:var(--acc);border-color:var(--acc);color:var(--acc-fg)}
 .round svg{width:18px;height:18px;stroke-width:2.2}
@@ -111,7 +118,7 @@ button:disabled{opacity:.4;cursor:not-allowed}
 dialog.sheet{position:fixed;inset:auto 0 0 0;margin:0 auto;width:100%;max-width:560px;max-height:92dvh;overflow-y:auto;
   border:0;border-radius:28px 28px 0 0;background:var(--bg);color:var(--fg);padding:8px 16px max(20px,env(safe-area-inset-bottom))}
 dialog.sheet[open]{animation:up .28s cubic-bezier(.2,.8,.2,1)}
-@keyframes up{from{transform:translateY(40px);opacity:.6}to{transform:none;opacity:1}}
+@keyframes up{from{transform:translate3d(0,40px,0);opacity:.6}to{transform:translate3d(0,0,0);opacity:1}}
 dialog::backdrop{background:rgba(0,0,0,.28)}
 .grab{width:40px;height:5px;border-radius:9px;background:var(--bd);margin:2px auto 8px}
 .sheet-head{display:flex;align-items:center;gap:8px;margin-bottom:14px}
@@ -171,3 +178,4 @@ input[role=switch]:checked::after{transform:translateX(20px)}
 .code-bar span{flex:1;text-transform:lowercase}
 .code-bar button{min-height:30px;border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:99px;padding:3px 10px;font:500 .74rem var(--sans)}
 .msg.bot .code-bar + pre{margin-top:0;border-radius:0 0 12px 12px}
+@media (hover:hover){.menu-item:hover,.model-chip:hover{background:var(--hover)}.session button.del:hover{background:var(--bd)}.chip:hover{background:var(--user)}}
