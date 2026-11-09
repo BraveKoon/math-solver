@@ -1,9 +1,10 @@
 import './style.css';
-import { modelsFor, defaultModel, DEFAULT_SYSTEM } from './models.js';
+import { modelsFor, defaultModel, DEFAULT_SYSTEM, CODER_SYSTEM } from './models.js';
 import { NativeEngine, MockEngine, UnsupportedEngine, nativeAvailable } from './engine.js';
 import { renderAnswer } from './render.js';
 import { loadSessions, saveSessions, currentId, setCurrentId, uid, titleFrom, relativeDay } from './sessions.js';
 import { prepareImage } from './images.js';
+import * as gh from './github.js';
 import { Keyboard } from '@capacitor/keyboard';
 
 const $ = (id) => document.getElementById(id);
@@ -118,9 +119,54 @@ function msgEl(m) {
   } else {
     el.className = 'msg bot';
     el.innerHTML = renderAnswer(m.content);
+    decorateCode(el);
   }
   return el;
 }
+
+/** 답변 속 코드 블록에 '복사', 'GitHub에 저장' 버튼을 붙인다(추론 과정 안의 코드는 제외). */
+function decorateCode(el) {
+  for (const pre of el.querySelectorAll('pre')) {
+    if (pre.closest('details.think') || pre.previousElementSibling?.classList.contains('code-bar')) continue;
+    const lang = (pre.querySelector('code')?.className.match(/language-([\w+#-]+)/) || [])[1] || '';
+    const bar = document.createElement('div');
+    bar.className = 'code-bar';
+    bar.innerHTML = `<span>${lang.replace(/[<>&"]/g, '') || 'code'}</span><button type="button" data-act="copy">복사</button><button type="button" data-act="gh">GitHub에 저장</button>`;
+    pre.before(bar);
+  }
+}
+
+$('chat').addEventListener('click', async (e) => {
+  const btn = e.target.closest('.code-bar button');
+  if (!btn) return;
+  const bar = btn.parentElement;
+  const pre = bar.nextElementSibling;
+  const code = pre?.innerText.replace(/\n$/, '') ?? '';
+  if (btn.dataset.act === 'copy') {
+    try { await navigator.clipboard.writeText(code); toast('복사했어요.'); } catch { toast('복사하지 못했어요.'); }
+    return;
+  }
+  const cfg = gh.getConfig();
+  if (!cfg.repo || !(await gh.getToken())) {
+    toast('설정에서 GitHub 저장소와 토큰을 먼저 연결하세요.');
+    return $('settings').showModal();
+  }
+  const hint = bar.previousElementSibling?.textContent.trim().split('\n').pop() ?? '';
+  const path = prompt(`${cfg.repo}${cfg.branch ? ' (' + cfg.branch + ')' : ''}에 저장할 파일 경로`, gh.suggestPath(bar.firstElementChild.textContent, hint));
+  if (!path) return;
+  btn.disabled = true;
+  btn.textContent = '저장 중…';
+  try {
+    await gh.saveFile(path.trim(), code + '\n', `오일러에서 저장: ${path.trim()}`);
+    btn.textContent = '저장됨 ✓';
+    toast(`${cfg.repo}/${path.trim()}에 커밋했어요.`);
+  } catch (err) {
+    btn.textContent = 'GitHub에 저장';
+    toast(errText(err));
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 function addMsg(m) {
   const el = msgEl(m);
@@ -397,13 +443,14 @@ async function send() {
       ({ role, content: role === 'assistant' ? stripThink(content) : withOcr(content, ocr) }));
     const reason = await engine.generate({
       model: m,
-      messages: [{ role: 'system', content: pref.get('sys', DEFAULT_SYSTEM) }, ...history],
+      messages: [{ role: 'system', content: m.coder ? CODER_SYSTEM : pref.get('sys', DEFAULT_SYSTEM) }, ...history],
       images: m.vision ? images.map((i) => i.send) : [],
       temperature: pref.get('temp', 0.6),
       maxTokens: pref.get('maxTokens', 2048),
       thinking: m.thinking === 'always' || (m.thinking === 'toggle' && pref.get('thinking', false)),
     }, (t) => { raw += t; if (!scheduled) { scheduled = true; requestAnimationFrame(paint); } });
     paint();
+    decorateCode(el);
     const note = reason === 'length' ? '답변이 길어 중간에 멈췄어요. 설정에서 최대 답변 길이를 늘릴 수 있어요.'
       : reason === 'context' ? '대화가 길어져 멈췄어요. 새 세션을 시작하세요.' : '';
     if (note) el.insertAdjacentHTML('beforeend', `<p class="meta">${note}</p>`);
@@ -457,6 +504,43 @@ $('temp').oninput = () => { $('tempOut').textContent = $('temp').value; pref.set
 $('maxTokens').onchange = () => pref.set('maxTokens', Math.max(256, +$('maxTokens').value || 2048));
 $('sys').onchange = () => pref.set('sys', $('sys').value);
 $('resetSys').onclick = () => { $('sys').value = DEFAULT_SYSTEM; pref.set('sys', DEFAULT_SYSTEM); toast('기본값으로 되돌렸어요.'); };
+// GitHub 연결 설정
+{
+  const cfg = gh.getConfig();
+  $('ghRepo').value = cfg.repo;
+  $('ghBranch').value = cfg.branch;
+  gh.getToken().then((t) => { $('ghToken').placeholder = t ? '저장됨 (바꾸려면 새로 입력)' : 'github_pat_…'; }).catch(() => {});
+  const saveCfg = () => {
+    const repo = gh.normalizeRepo($('ghRepo').value);
+    if ($('ghRepo').value.trim() && !repo) return toast('저장소는 owner/name 형식으로 입력하세요.');
+    $('ghRepo').value = repo;
+    gh.setConfig({ repo, branch: $('ghBranch').value.trim() });
+  };
+  $('ghRepo').onchange = saveCfg;
+  $('ghBranch').onchange = saveCfg;
+  $('ghToken').onchange = async () => {
+    const t = $('ghToken').value.trim();
+    if (!t) return;
+    try { await gh.setToken(t); $('ghToken').value = ''; $('ghToken').placeholder = '저장됨 (바꾸려면 새로 입력)'; toast('토큰을 키체인에 저장했어요.'); }
+    catch (e) { toast(errText(e)); }
+  };
+  $('ghCheck').onclick = async () => {
+    saveCfg();
+    if ($('ghToken').value.trim()) await $('ghToken').onchange();
+    $('ghStatus').textContent = '확인 중…';
+    try {
+      const r = await gh.checkConnection();
+      $('ghStatus').textContent = r.canPush ? `연결됨: ${r.fullName} (기본 브랜치 ${r.defaultBranch})` : `${r.fullName}에 쓰기 권한이 없어요. 토큰 권한을 확인하세요.`;
+    } catch (e) { $('ghStatus').textContent = errText(e); }
+  };
+  $('ghDisconnect').onclick = async () => {
+    await gh.setToken('');
+    gh.setConfig({ repo: '', branch: '' });
+    $('ghRepo').value = ''; $('ghBranch').value = ''; $('ghToken').value = '';
+    $('ghToken').placeholder = 'github_pat_…';
+    $('ghStatus').textContent = '연결을 해제했어요.';
+  };
+}
 $('clearAll').onclick = () => {
   if (!confirm('모든 세션을 삭제할까요?')) return;
   sessions = [];

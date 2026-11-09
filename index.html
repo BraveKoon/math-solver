@@ -135,6 +135,21 @@
       </label>
     </div>
     <div class="card form">
+      <p class="form-title">GitHub 연결 (오일러 코더의 코드를 저장소에 저장)</p>
+      <label>저장소 (owner/name)
+        <input id="ghRepo" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="bravekoon/my-code" />
+      </label>
+      <label>브랜치 (비우면 기본 브랜치)
+        <input id="ghBranch" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="main" />
+      </label>
+      <label>액세스 토큰 (Contents 읽기·쓰기 권한, 키체인에 보관)
+        <input id="ghToken" type="password" autocomplete="off" placeholder="github_pat_…" />
+      </label>
+      <button id="ghCheck" type="button" class="text-btn">연결 확인</button>
+      <button id="ghDisconnect" type="button" class="text-btn danger">연결 해제</button>
+      <p class="sheet-note" id="ghStatus"></p>
+    </div>
+    <div class="card form">
       <button id="resetSys" type="button" class="text-btn">시스템 프롬프트 기본값으로</button>
       <button id="clearAll" type="button" class="text-btn danger">모든 세션 삭제</button>
     </div>

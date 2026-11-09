@@ -18,6 +18,8 @@ public class LlamaPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "generate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "recognizeText", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "secureGet", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "secureSet", returnType: CAPPluginReturnPromise),
     ]
 
     private let work = DispatchQueue(label: "euler.llama.work", qos: .userInitiated)
@@ -137,7 +139,7 @@ public class LlamaPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    /// { messages: [{role, content}], images?: [base64], temperature?, maxTokens? }
+    /// { messages: [{role, content}], images?: [base64], temperature?, maxTokens?, noThink? }
     /// images는 마지막 사용자 메시지에 붙습니다. 토큰은 "token" 이벤트로 전달.
     @objc func generate(_ call: CAPPluginCall) {
         let raw = call.getArray("messages") ?? []
@@ -150,6 +152,7 @@ public class LlamaPlugin: CAPPlugin, CAPBridgedPlugin {
         let images = (call.getArray("images", String.self) ?? []).compactMap { Data(base64Encoded: $0) }
         let temperature = call.getFloat("temperature") ?? 0.6
         let maxTokens = call.getInt("maxTokens") ?? 2048
+        let noThink = call.getBool("noThink") ?? false
 
         work.async { [weak self] in
             let engine = LlamaEngine.shared
@@ -158,7 +161,8 @@ public class LlamaPlugin: CAPPlugin, CAPBridgedPlugin {
                     let markers = String(repeating: LlamaEngine.mediaMarker + "\n", count: images.count)
                     messages[last].content = markers + messages[last].content
                 }
-                let prompt = try engine.buildPrompt(messages: messages)
+                var prompt = try engine.buildPrompt(messages: messages)
+                if noThink { prompt += "<think>\n\n</think>\n\n" }
                 var buffer = ""
                 var lastFlush = Date()
                 let reason = try engine.generate(prompt: prompt, images: images, temperature: temperature,
@@ -207,5 +211,43 @@ public class LlamaPlugin: CAPPlugin, CAPBridgedPlugin {
                 .compactMap { $0.topCandidates(1).first?.string }
             call.resolve(["text": lines.joined(separator: "\n")])
         }
+    }
+
+    // MARK: 키체인(GitHub 토큰 등 비밀값 보관)
+
+    private func keychainQuery(_ key: String) -> [String: Any] {
+        [kSecClass as String: kSecClassGenericPassword,
+         kSecAttrService as String: "euler.secure",
+         kSecAttrAccount as String: key]
+    }
+
+    /// { key } -> { value? }
+    @objc func secureGet(_ call: CAPPluginCall) {
+        guard let key = call.getString("key") else { call.reject("key가 필요합니다."); return }
+        var q = keychainQuery(key)
+        q[kSecReturnData as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
+        var out: AnyObject?
+        if SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let data = out as? Data,
+           let value = String(data: data, encoding: .utf8) {
+            call.resolve(["value": value])
+        } else {
+            call.resolve([:])
+        }
+    }
+
+    /// { key, value? } — value가 없거나 빈 문자열이면 삭제
+    @objc func secureSet(_ call: CAPPluginCall) {
+        guard let key = call.getString("key") else { call.reject("key가 필요합니다."); return }
+        let q = keychainQuery(key)
+        SecItemDelete(q as CFDictionary)
+        if let value = call.getString("value"), !value.isEmpty {
+            var add = q
+            add[kSecValueData as String] = Data(value.utf8)
+            add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            let status = SecItemAdd(add as CFDictionary, nil)
+            guard status == errSecSuccess else { call.reject("키체인 저장 실패(\(status))"); return }
+        }
+        call.resolve()
     }
 }

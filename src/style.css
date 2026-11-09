@@ -167,3 +167,7 @@ input[role=switch]:checked::after{transform:translateX(20px)}
   .drawer-open #main{transform:none}
   #menuBtn{visibility:hidden}
 }
+.code-bar{display:flex;align-items:center;gap:6px;margin:.6em 0 0;padding:6px 8px 6px 12px;background:var(--hover);border-radius:12px 12px 0 0;font:500 .74rem var(--sans);color:var(--mut)}
+.code-bar span{flex:1;text-transform:lowercase}
+.code-bar button{min-height:30px;border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:99px;padding:3px 10px;font:500 .74rem var(--sans)}
+.msg.bot .code-bar + pre{margin-top:0;border-radius:0 0 12px 12px}
