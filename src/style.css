@@ -1,13 +1,14 @@
 :root{
-  --bg:#faf9f5;--side:#f3f2ec;--card:#ffffff;--fg:#29261b;--mut:#83827d;--acc:#c96442;--acc-fg:#fff;
-  --bd:#e8e6dc;--user:#f0eee6;--hover:#ebe9e1;--dark:#29261b;--dark-fg:#faf9f5;--shadow:0 2px 16px rgba(41,38,27,.06);
+  /* 앱 로고(남색 #0f1115 + 하늘색 #7cc4ff) 기준 팔레트 */
+  --bg:#f6f7fa;--side:#eceff4;--card:#ffffff;--fg:#14171f;--mut:#6b7385;--acc:#0a6cc4;--acc-fg:#fff;
+  --bd:#dde1ea;--user:#e6f0ff;--hover:#e4e8f0;--dark:#14171f;--dark-fg:#f6f7fa;--shadow:0 2px 16px rgba(15,17,21,.07);
   --sans:system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
   --serif:ui-serif,"Iowan Old Style",Georgia,"AppleMyungjo","Noto Serif KR",serif;
   --drawer:min(84vw,320px);
 }
 @media (prefers-color-scheme: dark){:root{
-  --bg:#262624;--side:#1f1e1d;--card:#30302e;--fg:#faf9f5;--mut:#9c9a92;--acc:#d97757;--acc-fg:#1f1e1d;
-  --bd:#3d3d3a;--user:#393937;--hover:#34342f;--dark:#faf9f5;--dark-fg:#1f1e1d;--shadow:0 2px 16px rgba(0,0,0,.3);}}
+  --bg:#0f1115;--side:#0b0d10;--card:#171a21;--fg:#e8eaf0;--mut:#8b93a7;--acc:#7cc4ff;--acc-fg:#04121f;
+  --bd:#272c38;--user:#1f2a3d;--hover:#1c2029;--dark:#e8eaf0;--dark-fg:#0f1115;--shadow:0 2px 16px rgba(0,0,0,.4);}}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior:none}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:16px/1.6 var(--sans);overflow:hidden}
@@ -127,7 +128,7 @@ ul.list{list-style:none;padding:0 18px}
 .mmeta .link{border:0;background:none;color:var(--acc);padding:0;font-size:.76rem}
 .model-row progress{width:100%;height:4px;margin-top:8px;accent-color:var(--acc)}
 .maction{flex:none;display:flex;align-items:center}
-.check{color:#3a73d6;width:26px;height:26px;stroke-width:2.4}
+.check{color:var(--acc);width:26px;height:26px;stroke-width:2.4}
 .get{border:1px solid var(--bd);background:transparent;border-radius:99px;padding:6px 14px;font-size:.85rem}
 .row-item{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;width:100%;border:0;text-align:left}
 .row-item b{font-weight:500;font-size:1.05rem}
