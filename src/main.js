@@ -416,6 +416,7 @@ async function send() {
   el.innerHTML = '<span class="meta">생각하는 중…</span>';
   let raw = '';
   let scheduled = false;
+  let paintTimer;
   const paint = () => {
     scheduled = false;
     const open = [...el.querySelectorAll('details.think')].map((d) => d.open);
@@ -448,7 +449,8 @@ async function send() {
       temperature: pref.get('temp', 0.6),
       maxTokens: pref.get('maxTokens', 2048),
       thinking: m.thinking === 'always' || (m.thinking === 'toggle' && pref.get('thinking', false)),
-    }, (t) => { raw += t; if (!scheduled) { scheduled = true; requestAnimationFrame(paint); } });
+    }, (t) => { raw += t; if (!scheduled) { scheduled = true; paintTimer = setTimeout(paint, 120); } });   // 화면이 터치에 반응할 틈을 주려고 초당 8회 정도만 다시 그린다
+    clearTimeout(paintTimer);
     paint();
     decorateCode(el);
     const note = reason === 'length' ? '답변이 길어 중간에 멈췄어요. 설정에서 최대 답변 길이를 늘릴 수 있어요.'
@@ -469,8 +471,27 @@ async function send() {
 }
 
 // ---------------------------------------------------------------- 서랍/시트/설정
-function openDrawer() { $('app').classList.add('drawer-open'); $('scrim').hidden = false; renderSessions(); }
+const drawerOpen = () => $('app').classList.contains('drawer-open');
+function openDrawer() { $('input').blur(); $('app').classList.add('drawer-open'); $('scrim').hidden = false; renderSessions(); }
 function closeDrawer() { $('app').classList.remove('drawer-open'); $('scrim').hidden = true; }
+
+// 밀어서 서랍 여닫기: 열린 상태에서 왼쪽으로 밀면 닫히고, 화면 왼쪽 가장자리에서 오른쪽으로 밀면 열린다.
+{
+  let sx = 0, sy = 0, tracking = false;
+  document.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    sx = t.clientX; sy = t.clientY;
+    tracking = e.touches.length === 1 && !document.querySelector('dialog[open]') && (drawerOpen() || sx < 28);
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!tracking) return;
+    const dx = e.touches[0].clientX - sx, dy = e.touches[0].clientY - sy;
+    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 12) { tracking = false; return; }   // 세로 스크롤
+    if (drawerOpen() && dx < -36) { tracking = false; closeDrawer(); }
+    else if (!drawerOpen() && dx > 48) { tracking = false; openDrawer(); }
+  }, { passive: true });
+  document.addEventListener('touchend', () => { tracking = false; }, { passive: true });
+}
 
 let toastTimer;
 function toast(msg) {
@@ -483,6 +504,7 @@ function toast(msg) {
 
 $('menuBtn').onclick = openDrawer;
 $('scrim').onclick = closeDrawer;
+$('main').addEventListener('click', (e) => { if (drawerOpen()) { e.preventDefault(); e.stopPropagation(); closeDrawer(); } }, true);
 $('newBtn').onclick = $('newSession').onclick = () => openSession(null);
 $('searchBtn').onclick = () => { $('search').hidden = !$('search').hidden; if (!$('search').hidden) $('search').focus(); };
 $('search').oninput = renderSessions;
