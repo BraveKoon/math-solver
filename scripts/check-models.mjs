@@ -15,6 +15,16 @@ for (const m of CATALOG.filter((x) => x.gguf)) {
         const info = await (await fetch(`https://huggingface.co/api/models/${m.gguf.repo}`)).json();
         const names = (info.siblings ?? []).map((s) => s.rfilename).filter((n) => n.endsWith('.gguf'));
         console.log(`     files in ${m.gguf.repo}: ${names.join(', ') || '(repo not found)'}`);
+        if (!names.length) {
+          // 저장소가 없으면 같은 모델명의 GGUF 저장소 후보와 파일 목록을 보여준다
+          const q = m.gguf.repo.split('/')[1];
+          const found = await (await fetch(`https://huggingface.co/api/models?search=${encodeURIComponent(q)}&limit=8`)).json();
+          for (const r of found) {
+            const d = await (await fetch(`https://huggingface.co/api/models/${r.id}`)).json();
+            const g = (d.siblings ?? []).map((s) => s.rfilename).filter((n) => n.endsWith('.gguf'));
+            console.log(`     candidate ${r.id}: ${g.join(', ')}`);
+          }
+        }
       } catch (e) {
         console.log(`     could not list repo: ${e.message}`);
       }

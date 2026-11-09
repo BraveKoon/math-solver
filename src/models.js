@@ -21,9 +21,9 @@ export const CATALOG = [
     id: 'euler-vision', name: '오일러 비전', desc: '사진 속 그래프·도형까지 직접 보고 풀이', detail: 'Qwen3-VL 4B',
     sizeMB: 3000, nCtx: 4096, thinking: 'none', vision: true,
     gguf: {
-      repo: 'ggml-org/Qwen3-VL-4B-Instruct-GGUF',
-      file: 'Qwen3-VL-4B-Instruct-Q4_K_M.gguf',
-      mmproj: 'mmproj-Qwen3-VL-4B-Instruct-Q8_0.gguf',
+      repo: 'Qwen/Qwen3-VL-4B-Instruct-GGUF',
+      file: 'Qwen3VL-4B-Instruct-Q4_K_M.gguf',
+      mmproj: 'mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf',
     },
   },
   // ---- 더 많은 모델 ----
