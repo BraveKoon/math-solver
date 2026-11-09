@@ -42,16 +42,19 @@ jobs:
           mkdir -p "$RUNNER_TEMP/keys"
           echo "${{ secrets.ASC_KEY_P8_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/keys/AuthKey_${KEY_ID}.p8"
 
-      - name: Archive (cloud-managed signing)
+      # 빌드(Archive)는 인증서가 필요 없는 임시(ad-hoc) 서명으로 권한(entitlements)만 새기고,
+      # 내보내기 단계에서 Apple이 관리하는 배포용 인증서로 다시 서명한다(권한은 이어짐).
+      # 빌드 단계에서 자동 서명을 쓰면 GitHub 러너(매번 새 머신)마다 새 'Apple Development: Created via API'
+      # 인증서가 생겨 계정 인증서 한도를 채운다(실제로 발생). 배포용 클라우드 인증서는 재사용된다.
+      - name: Archive (ad-hoc signed; re-signed at export)
         run: |
           xcodebuild archive \
             -project ios/App/App.xcodeproj -scheme App -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_${KEY_ID}.p8" \
-            -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID" \
-            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="-" AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGNING_REQUIRED=NO PROVISIONING_PROFILE_SPECIFIER="" \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}"
 
       - name: Verify export-compliance key in the archived app
@@ -60,24 +63,47 @@ jobs:
           echo "ITSAppUsesNonExemptEncryption = $(/usr/libexec/PlistBuddy -c 'Print :ITSAppUsesNonExemptEncryption' "$P" 2>&1)"
           echo "CFBundleIdentifier = $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$P" 2>&1)"
           echo "Version = $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$P" 2>&1) ($(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$P" 2>&1))"
+          echo "Archived entitlements:"; codesign -d --entitlements :- "$(dirname "$P")" 2>&1 | tail -n 20 || true
 
-      - name: Export and upload to App Store Connect
+      - name: Export options
         run: |
-          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          for dest in export upload; do
+          cat > "$RUNNER_TEMP/ExportOptions-$dest.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0"><dict>
             <key>method</key><string>app-store-connect</string>
-            <key>destination</key><string>upload</string>
+            <key>destination</key><string>$dest</string>
             <key>teamID</key><string>${TEAM_ID}</string>
             <key>signingStyle</key><string>automatic</string>
             <key>uploadSymbols</key><true/>
           </dict></plist>
           PLIST
+          done
+
+      # 먼저 IPA로 내보내 최종 서명·권한(확장 메모리 등)을 확인한 뒤 업로드
+      - name: Export signed IPA and verify entitlements
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportPath "$RUNNER_TEMP/ipa" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions-export.plist" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_${KEY_ID}.p8" \
+            -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID"
+          mkdir -p "$RUNNER_TEMP/ipa/x" && unzip -q "$RUNNER_TEMP"/ipa/*.ipa -d "$RUNNER_TEMP/ipa/x"
+          APP=$(echo "$RUNNER_TEMP"/ipa/x/Payload/*.app)
+          codesign -dvv "$APP" 2>&1 | grep -E "Authority|Identifier|TeamIdentifier" || true
+          codesign -d --entitlements :- "$APP" 2>/dev/null | tee "$RUNNER_TEMP/ent.plist"
+          if grep -q "increased-memory-limit" "$RUNNER_TEMP/ent.plist"; then echo "OK: increased-memory-limit present"
+          else echo "::error::increased-memory-limit entitlement missing in the signed app"; exit 1; fi
+
+      - name: Upload to App Store Connect
+        run: |
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
             -exportPath "$RUNNER_TEMP/export" \
-            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions-upload.plist" \
             -allowProvisioningUpdates \
             -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_${KEY_ID}.p8" \
             -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID"
