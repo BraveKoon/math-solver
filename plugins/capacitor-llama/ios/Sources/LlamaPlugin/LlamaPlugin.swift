@@ -21,11 +21,11 @@ public class LlamaPlugin: CAPPlugin, CAPBridgedPlugin {
     private let work = DispatchQueue(label: "euler.llama.work", qos: .userInitiated)
 
     override public func load() {
-        // 키보드가 올라오며 웹뷰가 줄어들 때 드러나는 바탕을 앱 배경색(라이트 #faf9f5 / 다크 #262624)과 맞춘다
+        // 키보드가 올라오며 웹뷰가 줄어들 때 드러나는 바탕을 앱 배경색(라이트 #f6f7fa / 다크 #0f1115)과 맞춘다
         DispatchQueue.main.async { [weak self] in
             let bg = UIColor { $0.userInterfaceStyle == .dark
-                ? UIColor(red: 0x26 / 255, green: 0x26 / 255, blue: 0x24 / 255, alpha: 1)
-                : UIColor(red: 0xfa / 255, green: 0xf9 / 255, blue: 0xf5 / 255, alpha: 1) }
+                ? UIColor(red: 0x0f / 255, green: 0x11 / 255, blue: 0x15 / 255, alpha: 1)
+                : UIColor(red: 0xf6 / 255, green: 0xf7 / 255, blue: 0xfa / 255, alpha: 1) }
             self?.bridge?.viewController?.view.backgroundColor = bg
             self?.bridge?.webView?.isOpaque = false
             self?.bridge?.webView?.backgroundColor = bg
