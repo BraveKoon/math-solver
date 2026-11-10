@@ -161,6 +161,8 @@ final class LlamaEngine {
             throw LlamaError("샘플러를 만들 수 없습니다.")
         }
         defer { llama_sampler_free(smpl) }
+        // 같은 문장을 되풀이하는 루프를 줄이기 위한 반복 억제(최근 128토큰, 숫자가 많은 수학에서도 과하지 않은 값)
+        llama_sampler_chain_add(smpl, llama_sampler_init_penalties(128, 1.1, 0.0, 0.3))
         if temperature <= 0 {
             llama_sampler_chain_add(smpl, llama_sampler_init_greedy())
         } else {
@@ -173,6 +175,7 @@ final class LlamaEngine {
         var utf8 = UTF8Stream()
         var produced = 0
         var reason = "eos"
+        var history: [llama_token] = []
         while true {
             if stopRequested { reason = "stopped"; break }
             if produced >= maxTokens { reason = "length"; break }
@@ -184,12 +187,26 @@ final class LlamaEngine {
             guard rc == 0 else { throw LlamaError("답변 생성 중 오류가 났습니다(\(rc)).") }
             nPast += 1
             produced += 1
+            history.append(token)
+            // 억제로도 못 막은 반복 루프: 같은 토큰 묶음이 4번 연속 반복되면 멈춘다
+            if produced % 16 == 0, Self.isLooping(history) { reason = "repeat"; break }
         }
         if let rest = utf8.flush() { onText(rest) }
         return reason
     }
 
     // MARK: - Helpers
+
+    /// 끝부분이 길이 6~96 토큰짜리 묶음의 4회 이상 연속 반복이면 true
+    static func isLooping(_ t: [llama_token]) -> Bool {
+        let n = t.count
+        for len in 6...96 where n >= len * 4 {
+            var same = true
+            for i in 0..<(len * 3) where t[n - 1 - i] != t[n - 1 - i - len] { same = false; break }
+            if same { return true }
+        }
+        return false
+    }
 
     private static func tokenize(_ text: String, vocab: OpaquePointer?) -> [llama_token] {
         let len = Int32(text.utf8.count)

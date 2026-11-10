@@ -459,7 +459,8 @@ async function send() {
     paint(true);
     decorateCode(el);
     const note = reason === 'length' ? '답변이 길어 중간에 멈췄어요. 설정에서 최대 답변 길이를 늘릴 수 있어요.'
-      : reason === 'context' ? '대화가 길어져 멈췄어요. 새 세션을 시작하세요.' : '';
+      : reason === 'context' ? '대화가 길어져 멈췄어요. 새 세션을 시작하세요.'
+      : reason === 'repeat' ? '같은 내용을 반복해서 멈췄어요. 사고 모드를 켜거나 더 큰 모델로 다시 물어보세요.' : '';
     if (note) el.insertAdjacentHTML('beforeend', `<p class="meta">${note}</p>`);
     if (raw.trim()) session.messages.push({ role: 'assistant', content: raw });
   } catch (e) {
