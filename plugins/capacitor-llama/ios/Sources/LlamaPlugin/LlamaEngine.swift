@@ -161,12 +161,13 @@ final class LlamaEngine {
             throw LlamaError("샘플러를 만들 수 없습니다.")
         }
         defer { llama_sampler_free(smpl) }
-        // 같은 문장을 되풀이하는 루프를 줄이기 위한 반복 억제(최근 128토큰, 숫자가 많은 수학에서도 과하지 않은 값)
-        llama_sampler_chain_add(smpl, llama_sampler_init_penalties(128, 1.1, 0.0, 0.3))
+        // 같은 문장을 되풀이하는 루프를 줄이기 위한 반복 억제(최근 128토큰, 숫자가 많은 수학에서도 과하지 않은 값).
+        // 전체 어휘에 적용하면 느리므로 top-k로 후보를 먼저 줄인 뒤 적용한다.
+        llama_sampler_chain_add(smpl, llama_sampler_init_top_k(20))
+        llama_sampler_chain_add(smpl, llama_sampler_init_penalties(llama_vocab_n_tokens(vocab), 128, 1.1, 0.0, 0.3))
         if temperature <= 0 {
             llama_sampler_chain_add(smpl, llama_sampler_init_greedy())
         } else {
-            llama_sampler_chain_add(smpl, llama_sampler_init_top_k(20))
             llama_sampler_chain_add(smpl, llama_sampler_init_top_p(0.95, 1))
             llama_sampler_chain_add(smpl, llama_sampler_init_temp(temperature))
             llama_sampler_chain_add(smpl, llama_sampler_init_dist(0xFFFF_FFFF))
