@@ -6,12 +6,12 @@ export const CATALOG = [
   // Qwen3.5 소형(2026): 모델 하나로 글과 사진을 모두 처리(mmproj = 이미지 인코더)
   {
     id: 'euler-mini', name: '오일러 미니', desc: '가장 빠른 답변', detail: 'Qwen3.5 0.8B',
-    sizeMB: 800, nCtx: 4096, thinking: 'toggle', vision: true,
+    sizeMB: 800, nCtx: 8192, thinking: 'toggle', vision: true,
     gguf: { repo: 'unsloth/Qwen3.5-0.8B-GGUF', file: 'Qwen3.5-0.8B-Q4_K_M.gguf', mmproj: 'mmproj-F16.gguf' },
   },
   {
     id: 'euler', name: '오일러', desc: '일상 문제와 사진 문제에 가장 효율적', detail: 'Qwen3.5 2B',
-    sizeMB: 1900, nCtx: 4096, thinking: 'toggle', vision: true, default: true, bundled: true,
+    sizeMB: 1900, nCtx: 8192, thinking: 'toggle', vision: true, default: true, bundled: true,
     gguf: { repo: 'unsloth/Qwen3.5-2B-GGUF', file: 'Qwen3.5-2B-Q4_K_M.gguf', mmproj: 'mmproj-F16.gguf' },
   },
   {

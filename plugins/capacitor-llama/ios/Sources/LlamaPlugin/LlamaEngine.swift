@@ -8,6 +8,9 @@ struct LlamaError: LocalizedError {
     var errorDescription: String? { message }
 }
 
+/// 프롬프트(질문+사진+이전 대화)가 컨텍스트에 답변 공간을 남기지 못할 만큼 긴 경우
+struct ContextOverflow: Error {}
+
 /// llama.cpp(텍스트) + mtmd(이미지) 래퍼. 모든 메서드는 같은 직렬 큐에서 호출해야 합니다(stop 제외).
 final class LlamaEngine {
     static let shared = LlamaEngine()
@@ -118,6 +121,8 @@ final class LlamaEngine {
         llama_memory_clear(llama_get_memory(ctx), true)
         let nCtx = Int(llama_n_ctx(ctx))
         var nPast: Int32 = 0
+        var kvUsed = 0          // 실제로 KV 캐시를 차지한 토큰 수(M-RoPE 사진은 위치 번호보다 훨씬 많다)
+        let reserve = 512       // 답변을 위해 비워 둘 토큰 수
 
         if !images.isEmpty {
             guard let mctx else { throw LlamaError("이 모델은 이미지를 읽을 수 없습니다. '오일러 비전'을 선택하세요.") }
@@ -136,6 +141,8 @@ final class LlamaEngine {
                 }
             }
             guard rc == 0 else { throw LlamaError("이미지와 질문을 처리하지 못했습니다(\(rc)).") }
+            kvUsed = Int(mtmd_helper_get_n_tokens(chunks))
+            if kvUsed > nCtx - reserve { throw ContextOverflow() }
             var newPast: llama_pos = 0
             guard mtmd_helper_eval_chunks(mctx, ctx, chunks, 0, 0, 512, true, &newPast) == 0 else {
                 throw LlamaError("이미지를 분석하는 중 오류가 났습니다. 메모리가 부족할 수 있습니다.")
@@ -143,7 +150,8 @@ final class LlamaEngine {
             nPast = newPast
         } else {
             var tokens = Self.tokenize(prompt, vocab: vocab)
-            guard tokens.count < nCtx - 32 else { throw LlamaError("대화가 너무 깁니다. 새 세션을 시작하세요.") }
+            guard tokens.count <= nCtx - reserve else { throw ContextOverflow() }
+            kvUsed = tokens.count
             var i = 0
             while i < tokens.count {
                 if stopRequested { return "stopped" }
@@ -180,11 +188,12 @@ final class LlamaEngine {
         while true {
             if stopRequested { reason = "stopped"; break }
             if produced >= maxTokens { reason = "length"; break }
-            if Int(nPast) >= nCtx - 1 { reason = "context"; break }
+            if kvUsed + produced >= nCtx - 2 { reason = "context"; break }
             var token = llama_sampler_sample(smpl, ctx, -1)
             if llama_vocab_is_eog(vocab, token) { break }
             if let s = utf8.append(Self.piece(vocab, token)) { onText(s) }
             let rc = llama_decode(ctx, llama_batch_get_one(&token, 1))
+            if rc == 1 { reason = "context"; break }   // KV 캐시에 빈 자리가 없음 → 오류 대신 '길어서 멈춤'으로 처리
             guard rc == 0 else { throw LlamaError("답변 생성 중 오류가 났습니다(\(rc)).") }
             nPast += 1
             produced += 1
