@@ -161,17 +161,34 @@ public class LlamaPlugin: CAPPlugin, CAPBridgedPlugin {
                     let markers = String(repeating: LlamaEngine.mediaMarker + "\n", count: images.count)
                     messages[last].content = markers + messages[last].content
                 }
-                var prompt = try engine.buildPrompt(messages: messages)
-                if noThink { prompt += "<think>\n\n</think>\n\n" }
                 var buffer = ""
                 var lastFlush = Date()
-                let reason = try engine.generate(prompt: prompt, images: images, temperature: temperature,
-                                                 maxTokens: maxTokens) { text in
-                    buffer += text
-                    if Date().timeIntervalSince(lastFlush) > 0.04 {
-                        self?.notifyListeners("token", data: ["text": buffer])
-                        buffer = ""
-                        lastFlush = Date()
+                var reason = "eos"
+                while true {
+                    var prompt = try engine.buildPrompt(messages: messages)
+                    if noThink { prompt += "<think>\n\n</think>\n\n" }
+                    do {
+                        reason = try engine.generate(prompt: prompt, images: images, temperature: temperature,
+                                                     maxTokens: maxTokens) { text in
+                            buffer += text
+                            if Date().timeIntervalSince(lastFlush) > 0.04 {
+                                self?.notifyListeners("token", data: ["text": buffer])
+                                buffer = ""
+                                lastFlush = Date()
+                            }
+                        }
+                        break
+                    } catch is ContextOverflow {
+                        // 질문+사진+이전 대화가 컨텍스트보다 길다 → 가장 오래된 대화부터 덜어내고 다시 시도(시스템 프롬프트와 마지막 질문은 유지)
+                        guard let first = messages.firstIndex(where: { $0.role != "system" }),
+                              first < messages.count - 1 else {
+                            throw LlamaError("질문과 사진이 너무 길어요. 사진을 줄이거나 새 세션에서 다시 물어보세요.")
+                        }
+                        messages.remove(at: first)
+                        while let f = messages.firstIndex(where: { $0.role != "system" }),
+                              f < messages.count - 1, messages[f].role == "assistant" {
+                            messages.remove(at: f)
+                        }
                     }
                 }
                 if !buffer.isEmpty { self?.notifyListeners("token", data: ["text": buffer]) }
